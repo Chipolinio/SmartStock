@@ -1,20 +1,8 @@
-# Виртуальное окружение
-venv/
-env/
-.venv/
-
-# Файлы PyCharm
-.idea/
-
-# Кэш Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Логи и временные файлы
-*.log
-*.tmp
-
-# Другие
-.DS_Store
+.venv/ 
+.env 
+__pycache__/ 
+*.pyc 
+*.pyo 
+*.pyd 
+.Python 
+venv/ 
