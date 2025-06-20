@@ -2,8 +2,6 @@ from pydantic import BaseModel, validator
 from datetime import date
 from typing import Optional
 
-
-
 class SaleBase(BaseModel):
     date: date
     product_id: int
@@ -24,7 +22,7 @@ class SaleCreate(SaleBase):
             "example": {
                 "date": "2025-06-20",
                 "product_id": 1,
-                "product_name": "Laptop",
+                "product_name": "Ноутбук",
                 "quantity": 10,
                 "revenue": 100.50,
                 "store_id": 1
@@ -54,10 +52,10 @@ class ForecastCreate(ForecastsBase):
             "example": {
                 "date": "2025-06-21",
                 "product_id": 1,
-                "product_name": "Laptop",
+                "product_name": "Ноутбук",
                 "predicted_quantity": 15.5,
                 "confidence": 0.95,
-                "forecast_method": "simple_average"
+                "forecast_method": "Простой средний показатель"
             }
         }
 

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from src.database.db import get_db, Sales, Forecasts
 from src.schemas.models import SaleCreate, SaleUpdate, ForecastCreate, ForecastUpdate
 from datetime import date
+from sqlalchemy.sql import func
 
 router = APIRouter()
 
@@ -104,4 +105,55 @@ def get_analytics(db: Session = Depends(get_db)):
     return {
         "total_revenue": total_revenue_sum,
         "average_predicted_quantity": avg_predicted_mean
+    }
+
+
+@router.get("/sales/filter")
+def filter_sales(date:str = None, product_name: str = None, db: Session = Depends(get_db)):
+    query = db.query(Sales)
+    if date:
+        try:
+            query = query.filter(Sales.date == date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format")
+            sales = query.all()
+    if product_name:
+        query = query.filter(Sales.product_name.ilike(f"%{product_name}%"))
+    sales = query.all()
+    return {"sales": [
+        {"id": s.id, "date": s.date,
+         "product_id": s.product_id, "product_name": s.product_name,
+         "quantity": s.quantity, "revenue": s.revenue,
+         "store_id": s.store_id} for s in sales]}
+
+@router.get("/forecasts/filter")
+def filter_forecasts(date: str = None,product_name: str = None, db: Session = Depends(get_db)):
+    query = db.query(Forecasts)
+    if date:
+        try:
+            query = query.filter(Forecasts.date == date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format")
+    if product_name:
+        query = query.filter(Forecasts.product_name.ilike(f"%{product_name}%"))
+    forecasts = query.all()
+    return {"forecasts": [{"id": f.id,
+                           "date": f.date,"product_id": f.product_id,
+                           "product_name": f.product_name, "predicted_quantity": f.predicted_quantity,
+                           "confidence": f.confidence, "forecast_method": f.forecast_method,
+                           "created_at": f.created_at} for f in forecasts]}
+
+@router.get("/analytics/aggregate")
+def get_aggregate_analytics(date: str = None, db: Session = Depends(get_db)):
+    query = db.query(Sales)
+    if date:
+        try:
+            query = query.filter(Sales.date == date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format")
+    total_revenue = db.query(func.sum(Sales.revenue)).scalar() or 0
+    avg_predicted = db.query(func.avg(Forecasts.predicted_quantity)).scalar() or 0
+    return {
+        "total_revenue": total_revenue,
+        "average_predicted_quantity": avg_predicted
     }
