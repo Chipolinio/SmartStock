@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
+from datetime import date
 from dotenv import load_dotenv
 from sqlalchemy import Column, Integer, String, Date, Float
 
@@ -14,9 +15,7 @@ DB_NAME = os.getenv("DB_NAME", "smartstock")
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 
 engine = create_engine(DATABASE_URL)
-# Создание сессии
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-# База для декларативных моделей
 Base = declarative_base()
 
 class Sales(Base):
@@ -24,16 +23,21 @@ class Sales(Base):
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, index=True)
     product_id = Column(Integer, index=True)
-    quantity = Column(Integer, index=True)
-    revenue = Column(Float, index=True)
+    product_name = Column(String, index=True)
+    quantity = Column(Integer)
+    revenue = Column(Float)
+    store_id = Column(Integer, index=True)
 
 class Forecasts(Base):
     __tablename__ = "forecasts"
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, index=True)
     product_id = Column(Integer, index=True)
+    product_name = Column(String, index=True)
     predicted_quantity = Column(Float, index=True)
     confidence = Column(Float, index=True)
+    forecast_method = Column(String, default="simple_average")
+    created_ad = Column(Date, default=lambda: date.today())
 
 # Создание таблиц
 Base.metadata.create_all(bind=engine)
