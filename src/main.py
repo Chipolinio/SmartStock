@@ -17,7 +17,7 @@ logging.debug("Starting FastAPI app")
 app = FastAPI()
 app.include_router(router)
 
-templates = Jinja2Templates(directory="src/templates")
+templates = Jinja2Templates(directory="D:/SmartStock/src/templates")
 
 @app.get("/")
 async def root():
