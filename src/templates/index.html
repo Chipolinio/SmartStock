@@ -2,9 +2,60 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>SmartStock AI Dashboard</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
 </head>
 <body>
+<h1>{{ message }}</h1>
+    <h2>Sales</h2>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Date</th>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Revenue</th>
+            <th>Store</th>
+        </tr>
+        {% for sale in sales %}
+        <tr>
+            <td>{{ sale.id }}</td>
+            <td>{{ sale.date }}</td>
+            <td>{{ sale.product_name }}</td>
+            <td>{{ sale.quantity }}</td>
+            <td>{{ sale.revenue }}</td>
+            <td>{{ sale.store_id }}</td>
+        </tr>
+        {% endfor %}
+    </table>
 
+    <h2>Forecasts</h2>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Date</th>
+            <th>Product</th>
+            <th>Predicted Quantity</th>
+            <th>Confidence</th>
+            <th>Method</th>
+            <th>Created</th>
+        </tr>
+        {% for forecast in forecasts %}
+        <tr>
+            <td>{{ forecast.id }}</td>
+            <td>{{ forecast.date }}</td>
+            <td>{{ forecast.product_name }}</td>
+            <td>{{ forecast.predicted_quantity }}</td>
+            <td>{{ forecast.confidence }}</td>
+            <td>{{ forecast.forecast_method }}</td>
+            <td>{{ forecast.created_at }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <p><a href="/analytics">View Analytics</a></p>
 </body>
 </html>
