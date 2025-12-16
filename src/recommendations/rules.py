@@ -1,0 +1,1 @@
+# Правила: low stock, no sales, overstock
