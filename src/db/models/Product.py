@@ -1,6 +1,5 @@
 from sqlalchemy import String, BigInteger
-from sqlalchemy.orm import relationship, Mapped
-from sqlalchemy.testing.schema import mapped_column
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from src.db.models.Base import Base
 
@@ -20,3 +19,4 @@ class Product(Base):
     sales_proxies = relationship("SalesProxyTS", back_populates="product", cascade="all, delete-orphan")
     features = relationship("ProductFeaturesDaily", back_populates="product", cascade="all, delete-orphan")
     predictions = relationship("PredictedSalesTS", back_populates="product", cascade="all, delete-orphan")
+    favorited_by: Mapped[list["UserFavorite"]] = relationship(back_populates="product", cascade="all, delete-orphan")

@@ -1,0 +1,18 @@
+from sqlalchemy import Integer, BigInteger, Date, Index, ForeignKey
+from sqlalchemy.orm import Mapped, relationship, mapped_column
+
+from datetime import date
+from src.db.models import Base
+
+class StockTS(Base):
+    __tablename__ = "stock_ts"
+    product_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("products.product_id"),
+        nullable=False)
+    dt: Mapped[date] = mapped_column(Date, nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    product = relationship("Product", back_populates="stocks")
+
+    __table_args__ = (Index("idx_stock_dt", "dt"),)

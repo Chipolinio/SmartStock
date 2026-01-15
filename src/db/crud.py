@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from src.models import Product, User, PriceTS
+from src.db.models import Product, User, PriceTS
 from src import schema
 
 # Products
