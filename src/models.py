@@ -3,35 +3,6 @@ from sqlalchemy import (
     Numeric, Date, DateTime, ForeignKey, Index, func
 )
 from sqlalchemy.orm import relationship
-from src.db.database import Base
-
-class Product(Base):
-    __tablename__ = "products"
-    id = Column(Integer, primary_key=True)
-    product_id = Column(BigInteger, nullable=False, unique=True)
-    name = Column(Text, nullable=False)
-    brand = Column(Text)
-    subject = Column(Text)
-    entity = Column(Text)
-
-    # Relationships
-    prices = relationship("PriceTS", back_populates="product", cascade="all, delete-orphan")
-    stocks = relationship("StockTS", back_populates="product", cascade="all, delete-orphan")
-    socials = relationship("SocialTS", back_populates="product", cascade="all, delete-orphan")
-    deliveries = relationship("DeliveryTS", back_populates="product", cascade="all, delete-orphan")
-    sales_proxies = relationship("SalesProxyTS", back_populates="product", cascade="all, delete-orphan")
-    features = relationship("ProductFeaturesDaily", back_populates="product", cascade="all, delete-orphan")
-    predictions = relationship("PredictedSalesTS", back_populates="product", cascade="all, delete-orphan")
-
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True)
-    user_id = Column(BigInteger, nullable=False, unique=True)
-    email = Column(Text, nullable=False, unique=True)
-    password_hash = Column(Text, nullable=False)
-    role = Column(Text, nullable=False)
-    is_pro = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime, server_default=func.now())
 
 class PriceTS(Base):
     __tablename__ = "prices_ts"
@@ -97,6 +68,7 @@ class ProductFeaturesDaily(Base):
     product = relationship("Product", back_populates="features")
     __table_args__ = (Index("idx_features_dt", "dt"),)
 
+
 class PredictedSalesTS(Base):
     __tablename__ = "predicted_sales_ts"
     id = Column(Integer, primary_key=True)
@@ -105,6 +77,7 @@ class PredictedSalesTS(Base):
     predicted_sales = Column(Numeric(12, 2), nullable=False)
     model_version = Column(Text, nullable=False)
     product = relationship("Product", back_populates="predictions")
+
 
 class UserFavorite(Base):
     __tablename__ = "user_favorites"
