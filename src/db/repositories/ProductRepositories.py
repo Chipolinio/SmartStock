@@ -2,16 +2,18 @@ from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Product
+from src.db.schemas.Product import ProductCreate, ProductUpdate
 
 
 async def create_product(
-        product: Product,
-        session: AsyncSession
+    product_in: ProductCreate,
+    session: AsyncSession
 ) -> Product:
-    session.add(product)
+    db_product = Product(**product_in.model_dump())
+    session.add(db_product)
     await session.commit()
-    await session.refresh(product)
-    return product
+    await session.refresh(db_product)
+    return db_product
 
 
 async def read_product(
@@ -24,7 +26,6 @@ async def read_product(
 
 
 async def read_products(
-
     session: AsyncSession,
     skip: int = 0,
     limit: int = 100,
@@ -36,7 +37,7 @@ async def read_products(
     stmt = select(Product).offset(skip).limit(limit)
 
     if name:
-        stmt.where(Product.name.ilike(f"%{name}%"))
+        stmt = stmt.where(Product.name.ilike(f"%{name}%"))
     if brand:
         stmt = stmt.where(Product.brand == brand)
     if subject:
@@ -45,18 +46,30 @@ async def read_products(
         stmt = stmt.where(Product.entity == entity)
 
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def update_product(
-        product: Product,
+        db_id: int,
+        product_update: ProductUpdate,
         session: AsyncSession
-):
-    session.add(product)
-    await session.commit()
-    await session.refresh(product)
-    return product
+) -> Product | None:
+    stmt = select(Product).where(Product.id == db_id)
+    result = await session.execute(stmt)
+    db_product = result.scalar_one_or_none()
 
+    if not db_product:
+        return None
+
+    update_data = product_update.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_product, key, value)
+
+    session.add(db_product)
+    await session.commit()
+    await session.refresh(db_product)
+    return db_product
 
 async def delete_product(
         product_id: int,
