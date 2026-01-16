@@ -18,5 +18,5 @@ class SalesProxyTS(Base):
     product = relationship("Product", back_populates="sales_proxies")
 
     __table_args__ = (
-        Index("idx_features_product_dt", "product_id", "dt"),
+        Index("idx_sales_product_dt", "product_id", "dt"),
     )

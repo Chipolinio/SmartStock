@@ -16,5 +16,5 @@ class DeliveryTS(Base):
     product = relationship("Product", back_populates="deliveries")
 
     __table_args__ = (
-        Index("idx_features_product_dt", "product_id", "dt"),
+        Index("idx_delivery_product_dt", "product_id", "dt"),
     )

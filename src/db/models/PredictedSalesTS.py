@@ -18,5 +18,5 @@ class PredictedSalesTS(Base):
     product = relationship("Product", back_populates="predictions")
 
     __table_args__ = (
-        Index("idx_features_product_dt", "product_id", "dt"),
+        Index("idx_predicted_sales_product_dt", "product_id", "dt"),
     )

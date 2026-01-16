@@ -18,5 +18,5 @@ class PriceTs(Base):
     product =  relationship("Product", back_populates="prices")
 
     __table_args__ = (
-        Index("idx_features_product_dt", "product_id", "dt"),
+        Index("idx_prices_product_dt", "product_id", "dt"),
     )

@@ -17,5 +17,5 @@ class SocialTS(Base):
     product = relationship("Product", back_populates="socials")
 
     __table_args__ = (
-        Index("idx_features_product_dt", "product_id", "dt"),
+        Index("idx_social_product_dt", "product_id", "dt"),
     )
