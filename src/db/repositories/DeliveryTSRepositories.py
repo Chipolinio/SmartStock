@@ -1,0 +1,60 @@
+from sqlalchemy import select, insert, delete, desc
+from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import date
+from typing import Sequence
+
+from src.db.models import DeliveryTS
+
+
+async def create_deliveries_bulk(
+        deliveries_data: list[dict],
+        session: AsyncSession
+):
+    if not deliveries_data:
+        return
+
+    await session.execute(insert(DeliveryTS), deliveries_data)
+    await session.commit()
+
+
+async def read_delivery_history(
+        product_id: int,
+        session: AsyncSession,
+        limit: int = 30
+) -> Sequence[DeliveryTS]:
+    stmt = (
+        select(DeliveryTS)
+        .where(DeliveryTS.product_id == product_id)
+        .order_by(desc(DeliveryTS.dt))
+        .limit(limit)
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
+async def read_latest_delivery(
+        product_id: int,
+        session: AsyncSession
+) -> DeliveryTS | None:
+    stmt = (
+        select(DeliveryTS)
+        .where(DeliveryTS.product_id == product_id)
+        .order_by(desc(DeliveryTS.dt))
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def delete_delivery_by_date(
+        product_id: int,
+        dt: date,
+        session: AsyncSession
+):
+    stmt = (
+        delete(DeliveryTS)
+        .where(DeliveryTS.product_id == product_id)
+        .where(DeliveryTS.dt == dt)
+    )
+    await session.execute(stmt)
+    await session.commit()
