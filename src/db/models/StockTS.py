@@ -15,4 +15,6 @@ class StockTS(Base):
 
     product = relationship("Product", back_populates="stocks")
 
-    __table_args__ = (Index("idx_stock_dt", "dt"),)
+    __table_args__ = (
+        Index("idx_features_product_dt", "product_id", "dt"),
+    )

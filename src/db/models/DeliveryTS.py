@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, BigInteger, Date, ForeignKey
+from sqlalchemy import Integer, BigInteger, Date, ForeignKey, Index
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from datetime import date
@@ -14,3 +14,7 @@ class DeliveryTS(Base):
     delivery_days: Mapped[int] = mapped_column(Integer)
 
     product = relationship("Product", back_populates="deliveries")
+
+    __table_args__ = (
+        Index("idx_features_product_dt", "product_id", "dt"),
+    )

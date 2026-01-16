@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, BigInteger, Date, Numeric, ForeignKey
+from sqlalchemy import Integer, BigInteger, Date, Numeric, ForeignKey, Index
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from datetime import date
@@ -15,3 +15,7 @@ class SocialTS(Base):
     feedbacks: Mapped[int] = mapped_column(Integer)
 
     product = relationship("Product", back_populates="socials")
+
+    __table_args__ = (
+        Index("idx_features_product_dt", "product_id", "dt"),
+    )

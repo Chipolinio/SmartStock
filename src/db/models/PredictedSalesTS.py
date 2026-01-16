@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Date, Numeric, String, ForeignKey
+from sqlalchemy import BigInteger, Date, Numeric, String, ForeignKey, Index
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from datetime import date
@@ -16,3 +16,7 @@ class PredictedSalesTS(Base):
     model_version: Mapped[str]  = mapped_column(String, nullable=False)
 
     product = relationship("Product", back_populates="predictions")
+
+    __table_args__ = (
+        Index("idx_features_product_dt", "product_id", "dt"),
+    )

@@ -25,4 +25,6 @@ class ProductFeaturesDaily(Base):
 
     product = relationship("Product", back_populates="features")
 
-    __table_args__ = (Index("idx_features_dt", "dt"),)
+    __table_args__ = (
+        Index("idx_features_product_dt", "product_id", "dt"),
+    )
