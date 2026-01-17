@@ -4,16 +4,28 @@ from datetime import date
 from typing import Sequence
 
 from src.db.models import PredictedSalesTS
+from src.db.schemas.PredictedSalesTS import PredictedSalesTSCreate
 
+
+async def create_predict_sales_record(
+        predict_sales_in: PredictedSalesTSCreate,
+        session: AsyncSession
+) -> PredictedSalesTS:
+    db_predict_sales = PredictedSalesTS(**predict_sales_in.model_dump())
+    session.add(db_predict_sales)
+    await session.commit()
+    await session.refresh(db_predict_sales)
+    return db_predict_sales
 
 async def create_predict_sales_bulk(
-        prices_data: list[dict],
+        predict_sales_in: list[PredictedSalesTSCreate],
         session: AsyncSession
 ):
-    if not prices_data:
+    if not predict_sales_in:
         return
+    predict_sales_data = [pr.model_dump() for pr in predict_sales_in]
 
-    await session.execute(insert(PredictedSalesTS), prices_data)
+    await session.execute(insert(PredictedSalesTS), predict_sales_data)
     await session.commit()
 
 
@@ -33,7 +45,7 @@ async def read_latest_prediction(
     stmt = stmt.order_by(desc(PredictedSalesTS.dt)).limit(1)
 
     result = await session.execute(stmt)
-    return result.scalar_one_or_none()
+    return result.scalar()
 
 
 async def read_predict_sales_history(
@@ -48,7 +60,7 @@ async def read_predict_sales_history(
         .limit(limit)
     )
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def delete_predict_sale_by_date(

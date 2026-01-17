@@ -4,16 +4,29 @@ from datetime import date
 from typing import Sequence
 
 from src.db.models import SalesProxyTS
+from src.db.schemas.SalesProxyTS import SalesProxyTSCreate
+
+
+async def create_sale_record(
+        sale_in: SalesProxyTSCreate,
+        session: AsyncSession
+) -> SalesProxyTS:
+    db_sale = SalesProxyTS(**sale_in.model_dump())
+    session.add(db_sale)
+    await session.commit()
+    await session.refresh(db_sale)
+    return db_sale
 
 
 async def create_sales_bulk(
-        prices_data: list[dict],
+        sales_in: list[SalesProxyTSCreate],
         session: AsyncSession
 ):
-    if not prices_data:
+    if not sales_in:
         return
+    sales_data = [s.model_dump() for s in sales_in]
 
-    await session.execute(insert(SalesProxyTS), prices_data)
+    await session.execute(insert(SalesProxyTS), sales_data)
     await session.commit()
 
 
@@ -28,7 +41,7 @@ async def read_sale_latest(
         .limit(1)
     )
     result = await session.execute(stmt)
-    return result.scalar_one_or_none()
+    return result.scalar()
 
 
 async def read_sales_history(
@@ -43,7 +56,7 @@ async def read_sales_history(
         .limit(limit)
     )
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def delete_sale_by_date(

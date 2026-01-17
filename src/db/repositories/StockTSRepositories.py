@@ -4,16 +4,28 @@ from datetime import date
 from typing import Sequence
 
 from src.db.models import StockTS
+from src.db.schemas.StockTS import StockTSCreate
 
+
+async def create_stock_record(
+        stock_in: StockTSCreate,
+        session: AsyncSession
+) -> StockTS:
+    db_stock = StockTS(**stock_in.model_dump())
+    session.add(db_stock)
+    await session.commit()
+    await session.refresh(db_stock)
+    return db_stock
 
 async def create_stocks_bulk(
-        prices_data: list[dict],
+        stock_in: list[StockTSCreate],
         session: AsyncSession
 ):
-    if not prices_data:
+    if not stock_in:
         return
+    stock_data = [s.model_dump() for s in stock_in]
 
-    await session.execute(insert(StockTS), prices_data)
+    await session.execute(insert(StockTS), stock_data)
     await session.commit()
 
 
@@ -28,7 +40,7 @@ async def read_stock_latest(
         .limit(1)
     )
     result = await session.execute(stmt)
-    return result.scalar_one_or_none()
+    return result.scalar()
 
 
 async def read_stocks_history(
@@ -43,7 +55,7 @@ async def read_stocks_history(
         .limit(limit)
     )
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def delete_stock_by_date(

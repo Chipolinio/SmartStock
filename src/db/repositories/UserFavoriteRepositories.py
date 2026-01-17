@@ -3,25 +3,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Sequence
 
 from src.db.models import UserFavorite, Product
+from src.db.schemas.UserFavorite import UserFavoriteCreate
 
 async def create_user_favorites(
-        user_id: int,
-        product_id: int,
+        fav_in: UserFavoriteCreate,
         session: AsyncSession
 ) -> UserFavorite | None:
     check_stmt = select(UserFavorite).where(
-        UserFavorite.user_id == user_id,
-        UserFavorite.product_id == product_id
+        UserFavorite.user_id == fav_in.user_id,
+        UserFavorite.product_id == fav_in.product_id
     )
-    existing = await session.execute(check_stmt)
-    if existing.scalar_one_or_none():
+    result = await session.execute(check_stmt)
+    if result.scalar_one_or_none():
         return None
 
-    new_fav = UserFavorite(user_id=user_id, product_id=product_id)
-    session.add(new_fav)
+    db_fav = UserFavorite(**fav_in.model_dump())
+    session.add(db_fav)
     await session.commit()
-    await session.refresh(new_fav)
-    return new_fav
+    await session.refresh(db_fav)
+    return db_fav
 
 async def read_user_favorites(
         user_id: int,
@@ -33,7 +33,7 @@ async def read_user_favorites(
         .where(UserFavorite.user_id == user_id)
     )
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def delete_user_favorites(

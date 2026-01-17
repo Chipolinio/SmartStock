@@ -4,14 +4,27 @@ from datetime import date
 from typing import Sequence
 
 from src.db.models import DeliveryTS
+from src.db.schemas.DeliveryTS import DeliveryTSCreate
+
+
+async def create_delivery_record(
+        delivery_in: DeliveryTSCreate,
+        session: AsyncSession
+) -> DeliveryTS:
+    db_delivery = DeliveryTS(**delivery_in.model_dump())
+    session.add(db_delivery)
+    await session.commit()
+    await session.refresh(db_delivery)
+    return db_delivery
 
 
 async def create_deliveries_bulk(
-        deliveries_data: list[dict],
+        deliveries_in: list[DeliveryTSCreate],
         session: AsyncSession
 ):
-    if not deliveries_data:
+    if not deliveries_in:
         return
+    deliveries_data = [d.model_dump() for d in deliveries_in]
 
     await session.execute(insert(DeliveryTS), deliveries_data)
     await session.commit()
@@ -29,7 +42,7 @@ async def read_delivery_history(
         .limit(limit)
     )
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def read_latest_delivery(
@@ -43,7 +56,7 @@ async def read_latest_delivery(
         .limit(1)
     )
     result = await session.execute(stmt)
-    return result.scalar_one_or_none()
+    return result.scalar()
 
 
 async def delete_delivery_by_date(

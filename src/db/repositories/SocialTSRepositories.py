@@ -4,16 +4,28 @@ from datetime import date
 from typing import Sequence
 
 from src.db.models import SocialTS
+from src.db.schemas.SocialTS import SocialTSCreate
 
+
+async def create_social_record(
+        social_in: SocialTSCreate,
+        session: AsyncSession
+) -> SocialTS:
+    db_social = SocialTS(**social_in.model_dump())
+    session.add(db_social)
+    await session.commit()
+    await session.refresh(db_social)
+    return db_social
 
 async def create_socials_bulk(
-        prices_data: list[dict],
+        social_in: list[SocialTSCreate],
         session: AsyncSession
 ):
-    if not prices_data:
+    if not social_in:
         return
+    social_data = [s.model_dump() for s in social_in]
 
-    await session.execute(insert(SocialTS), prices_data)
+    await session.execute(insert(SocialTS), social_data)
     await session.commit()
 
 
@@ -28,7 +40,7 @@ async def read_social_latest(
         .limit(1)
     )
     result = await session.execute(stmt)
-    return result.scalar_one_or_none()
+    return result.scalar()
 
 
 async def read_socials_history(
@@ -43,7 +55,7 @@ async def read_socials_history(
         .limit(limit)
     )
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def delete_social_by_date(

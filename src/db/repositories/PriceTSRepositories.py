@@ -4,14 +4,27 @@ from datetime import date
 from typing import Sequence
 
 from src.db.models import PriceTs
+from src.db.schemas.PriceTS import PriceTSCreate
+
+
+async def create_price_record(
+        price_in: PriceTSCreate,
+        session: AsyncSession
+) -> PriceTs:
+    db_price = PriceTs(**price_in.model_dump())
+    session.add(db_price)
+    await session.commit()
+    await session.refresh(db_price)
+    return db_price
 
 
 async def create_prices_bulk(
-        prices_data: list[dict],
+        prices_in: list[PriceTSCreate],
         session: AsyncSession
 ):
-    if not prices_data:
+    if not prices_in:
         return
+    prices_data = [p.model_dump() for p in prices_in]
 
     await session.execute(insert(PriceTs), prices_data)
     await session.commit()
@@ -28,7 +41,7 @@ async def read_price_latest(
         .limit(1)
     )
     result = await session.execute(stmt)
-    return result.scalar_one_or_none()
+    return result.scalar()
 
 
 async def read_prices_history(
@@ -43,7 +56,7 @@ async def read_prices_history(
         .limit(limit)
     )
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def delete_price_by_date(
