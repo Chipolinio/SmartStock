@@ -50,11 +50,11 @@ async def read_products(
 
 
 async def update_product(
-        db_id: int,
+        product_id: int,
         product_update: ProductUpdate,
         session: AsyncSession
 ) -> Product | None:
-    stmt = select(Product).where(Product.id == db_id)
+    stmt = select(Product).where(Product.product_id == product_id)
     result = await session.execute(stmt)
     db_product = result.scalar_one_or_none()
 

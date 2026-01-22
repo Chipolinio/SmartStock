@@ -5,7 +5,7 @@ from datetime import date
 from src.db.models import Base
 
 
-class PriceTs(Base):
+class PriceTS(Base):
     __tablename__ = "price_ts"
     product_id: Mapped[int] = mapped_column(
         BigInteger,

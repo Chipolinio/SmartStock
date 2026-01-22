@@ -1,7 +1,7 @@
 from .Base import Base
 from .DeliveryTS import DeliveryTS
 from .PredictedSalesTS import PredictedSalesTS
-from .PriceTS import PriceTs
+from .PriceTS import PriceTS
 from .Product import Product
 from .ProductFeaturesDaily import ProductFeaturesDaily
 from .SalesProxyTS import SalesProxyTS
@@ -14,7 +14,7 @@ __all__ = [
     "Base",
     "DeliveryTS",
     "PredictedSalesTS",
-    "PriceTs",
+    "PriceTS",
     "Product",
     "ProductFeaturesDaily",
     "SalesProxyTS",
