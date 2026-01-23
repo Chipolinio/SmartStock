@@ -1,9 +1,9 @@
-from sqlalchemy import select, insert, delete, desc
+from sqlalchemy import select, insert, delete, desc, func, and_, Float
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import date
+from datetime import date, timedelta
 from typing import Sequence
 
-from src.db.models import SalesProxyTS
+from src.db.models import SalesProxyTS, StockTS
 from src.db.schemas.SalesProxyTS import SalesProxyTSCreate
 
 
@@ -13,8 +13,6 @@ async def create_sale_record(
 ) -> SalesProxyTS:
     db_sale = SalesProxyTS(**sale_in.model_dump())
     session.add(db_sale)
-    await session.commit()
-    await session.refresh(db_sale)
     return db_sale
 
 
@@ -27,7 +25,6 @@ async def create_sales_bulk(
     sales_data = [s.model_dump() for s in sales_in]
 
     await session.execute(insert(SalesProxyTS), sales_data)
-    await session.commit()
 
 
 async def read_sale_latest(
@@ -70,4 +67,30 @@ async def delete_sale_by_date(
         .where(SalesProxyTS.dt == dt)
     )
     await session.execute(stmt)
-    await session.commit()
+
+
+async def calculate_velocity_with_oos(
+        product_id: int,
+        days: int,
+        session: AsyncSession
+) -> float:
+    start_date = date.today() - timedelta(days=days)
+
+    stmt = (
+        select(
+            (func.sum(SalesProxyTS.sales) / func.cast(func.count(SalesProxyTS.dt), Float)))
+        .join(
+            StockTS,
+            and_(
+                StockTS.product_id == SalesProxyTS.product_id,
+                StockTS.dt == SalesProxyTS.dt)
+        )
+        .where(
+            SalesProxyTS.product_id == product_id,
+            StockTS.quantity > 0,
+            SalesProxyTS.dt >= start_date )
+    )
+
+    result = await session.execute(stmt)
+    velocity = result.scalar()
+    return float(velocity) if velocity else 0.0

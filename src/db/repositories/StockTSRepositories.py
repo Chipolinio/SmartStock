@@ -1,4 +1,4 @@
-from sqlalchemy import select, insert, delete, desc
+from sqlalchemy import select, insert, delete, desc, func, over
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 from typing import Sequence
@@ -13,8 +13,6 @@ async def create_stock_record(
 ) -> StockTS:
     db_stock = StockTS(**stock_in.model_dump())
     session.add(db_stock)
-    await session.commit()
-    await session.refresh(db_stock)
     return db_stock
 
 async def create_stocks_bulk(
@@ -26,7 +24,6 @@ async def create_stocks_bulk(
     stock_data = [s.model_dump() for s in stock_in]
 
     await session.execute(insert(StockTS), stock_data)
-    await session.commit()
 
 
 async def read_stock_latest(
@@ -58,6 +55,28 @@ async def read_stocks_history(
     return list(result.scalars().all())
 
 
+async def read_latest_stocks_for_products(
+        product_ids: list[int],
+        session: AsyncSession
+) -> list[StockTS]:
+    subq = (
+        select(
+            StockTS,
+            func.row_number().over(
+                partition_by=StockTS.product_id,
+                order_by=desc(StockTS.dt)
+            ).label("rn")
+        )
+        .where(StockTS.product_id.in_(product_ids))
+        .subquery()
+    )
+    stmt = select(StockTS).from_statement(
+        select(subq).where(subq.c.rn == 1)
+    )
+
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
 async def delete_stock_by_date(
         product_id: int,
         dt: date,
@@ -69,4 +88,3 @@ async def delete_stock_by_date(
         .where(StockTS.dt == dt)
     )
     await session.execute(stmt)
-    await session.commit()
