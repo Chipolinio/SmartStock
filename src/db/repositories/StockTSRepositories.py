@@ -1,4 +1,5 @@
-from sqlalchemy import select, insert, delete, desc, func, over
+from sqlalchemy import select, delete, desc, func
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 from typing import Sequence
@@ -20,10 +21,18 @@ async def create_stocks_bulk(
         session: AsyncSession
 ):
     if not stock_in:
-        return
-    stock_data = [s.model_dump() for s in stock_in]
+        return []
 
-    await session.execute(insert(StockTS), stock_data)
+    stocks_data = [s.model_dump() for s in stock_in]
+
+    stmt = insert(StockTS).values(stocks_data)
+
+    stmt = stmt.on_conflict_do_nothing(
+        index_elements=['product_id', 'dt']
+    ).returning(StockTS)
+
+    result = await session.execute(stmt)
+    return result.scalars().all()
 
 
 async def read_stock_latest(

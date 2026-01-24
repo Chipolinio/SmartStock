@@ -45,7 +45,7 @@ async def create_sales_proxy_ts(
             detail="Sales record for this date already exists"
         )
 
-async def create_stocks_bulk_service(
+async def create_stocks_bulk(
     stocks_in: list[StockTSCreate],
     session: AsyncSession
 ) -> list[StockTSResponse]:
@@ -57,7 +57,7 @@ async def create_stocks_bulk_service(
         await session.rollback()
         raise HTTPException(status_code=409, detail="Stock records already exist")
 
-async def create_sales_bulk_service(
+async def create_sales_bulk(
     sales_in: list[SalesProxyTSCreate],
     session: AsyncSession
 ) -> list[SalesProxyTSResponse]:
@@ -68,6 +68,31 @@ async def create_sales_bulk_service(
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=409, detail="Sales records already exist")
+
+async def get_stock_history(
+    product_id: int,
+    session: AsyncSession,
+    limit: int = 30
+) -> list[StockTSResponse]:
+
+    stocks = await StockTSRepositories.read_stocks_history(
+        product_id=product_id,
+        session=session,
+        limit=limit
+    )
+    return [StockTSResponse.model_validate(s) for s in stocks]
+
+async def get_sales_history(
+    product_id: int,
+    session: AsyncSession,
+    limit: int = 30
+) -> list[SalesProxyTSResponse]:
+    sales = await SalesProxyTSRepositories.read_sales_history(
+        product_id=product_id,
+        session=session,
+        limit=limit
+    )
+    return [SalesProxyTSResponse.model_validate(s) for s in sales]
 
 def calculate_proxy_sales(
         stocks_in: list[StockTSCreate],
@@ -96,9 +121,11 @@ async def analytics_data(
         stocks_in: list[StockTSCreate],
         session: AsyncSession
 ) -> dict:
-    product_ids = [s.product_id for s in stocks_in]
+    if not stocks_in:
+        return {"status": "skipped", "detail": "Empty stock list"}
+    product_ids = list({s.product_id for s in stocks_in})
     latest_stocks = await StockTSRepositories.read_latest_stocks_for_products(product_ids, session)
-    old_stocks_map = {s.product_id: s.quantity for s in latest_stocks}
+    old_stocks_map = {s.product_id: s.quantity for s in latest_stocks} if latest_stocks else {}
 
     sales_to_create = calculate_proxy_sales(stocks_in, old_stocks_map)
 

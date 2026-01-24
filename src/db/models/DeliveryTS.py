@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, BigInteger, Date, ForeignKey, Index
+from sqlalchemy import Integer, BigInteger, Date, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from datetime import date
@@ -16,5 +16,5 @@ class DeliveryTS(Base):
     product = relationship("Product", back_populates="deliveries")
 
     __table_args__ = (
-        Index("idx_delivery_product_dt", "product_id", "dt"),
+        UniqueConstraint("product_id", "dt", name="uq_delivery_product_dt"),
     )

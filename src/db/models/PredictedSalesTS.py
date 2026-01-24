@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Date, Numeric, String, ForeignKey, Index
+from sqlalchemy import BigInteger, Date, Numeric, String, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from datetime import date
@@ -18,5 +18,5 @@ class PredictedSalesTS(Base):
     product = relationship("Product", back_populates="predictions")
 
     __table_args__ = (
-        Index("idx_predicted_sales_product_dt", "product_id", "dt"),
+        UniqueConstraint( "product_id", "dt", name="uq_predicted_sales_product_dt"),
     )

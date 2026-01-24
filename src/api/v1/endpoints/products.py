@@ -4,7 +4,7 @@ from typing import List
 
 from src.db.database import get_db
 from src.db.schemas.Product import ProductCreate, ProductUpdate, ProductResponse
-from src.serviсes import ProductService
+from src.services import ProductService
 
 router = APIRouter()
 

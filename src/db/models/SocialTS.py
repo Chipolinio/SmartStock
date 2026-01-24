@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, BigInteger, Date, Numeric, ForeignKey, Index
+from sqlalchemy import Integer, BigInteger, Date, Numeric, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from datetime import date
@@ -17,5 +17,5 @@ class SocialTS(Base):
     product = relationship("Product", back_populates="socials")
 
     __table_args__ = (
-        Index("idx_social_product_dt", "product_id", "dt"),
+        UniqueConstraint("product_id", "dt", name="uq_social_product_dt"),
     )

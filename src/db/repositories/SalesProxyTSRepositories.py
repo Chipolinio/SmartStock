@@ -1,4 +1,5 @@
-from sqlalchemy import select, insert, delete, desc, func, and_, Float
+from sqlalchemy import select, delete, desc, func, and_, Float
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date, timedelta
 from typing import Sequence
@@ -21,10 +22,19 @@ async def create_sales_bulk(
         session: AsyncSession
 ):
     if not sales_in:
-        return
+        return []
+
     sales_data = [s.model_dump() for s in sales_in]
 
-    await session.execute(insert(SalesProxyTS), sales_data)
+    stmt = insert(SalesProxyTS).values(sales_data)
+
+    stmt = stmt.on_conflict_do_nothing(
+        index_elements=['product_id', 'dt']
+    ).returning(SalesProxyTS)
+
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
 
 
 async def read_sale_latest(

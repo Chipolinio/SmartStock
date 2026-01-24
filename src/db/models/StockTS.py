@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, BigInteger, Date, Index, ForeignKey
+from sqlalchemy import Integer, BigInteger, Date, UniqueConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from datetime import date
@@ -16,5 +16,5 @@ class StockTS(Base):
     product = relationship("Product", back_populates="stocks")
 
     __table_args__ = (
-        Index("idx_stock_product_dt", "product_id", "dt"),
+        UniqueConstraint("product_id", "dt", name="uq_stock_product_dt"),
     )
