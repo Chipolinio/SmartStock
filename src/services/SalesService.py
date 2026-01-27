@@ -1,11 +1,22 @@
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 
 from src.db.schemas.StockTS import StockTSCreate, StockTSResponse
 from src.db.schemas.SalesProxyTS import SalesProxyTSCreate, SalesProxyTSResponse
-from src.db.repositories import StockTSRepositories
-from src.db.repositories import SalesProxyTSRepositories
+from src.db.schemas.PriceTS import PriceTSCreate, PriceTSResponse
+from src.db.schemas.DeliveryTS import DeliveryTSCreate, DeliveryTSResponse
+from src.db.schemas.SocialTS import SocialTSCreate, SocialTSResponse
+from src.db.schemas.PredictedSalesTS import PredictedSalesTSCreate, PredictedSalesTSResponse
+
+from src.db.repositories import (StockTSRepositories,
+                                 SocialTSRepositories,
+                                 SalesProxyTSRepositories,
+                                 PriceTSRepositories,
+                                 DeliveryTSRepositories,
+                                 PredictedSalesTSRepositories)
+
 
 
 async def create_stock_ts(
@@ -45,6 +56,82 @@ async def create_sales_proxy_ts(
             detail="Sales record for this date already exists"
         )
 
+async def create_price_ts(
+    price_in: PriceTSCreate,
+    session: AsyncSession
+):
+    try:
+        price_from_db = await PriceTSRepositories.create_price_record(
+            price_in = price_in,
+            session = session
+        )
+        await session.commit()
+        price_data = PriceTSResponse.model_validate(price_from_db)
+        return price_data
+    except IntegrityError as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Price already exists"
+        )
+
+async def create_delivery_ts(
+    delivery_in: DeliveryTSCreate,
+    session: AsyncSession
+):
+    try:
+        delivery_from_db = await DeliveryTSRepositories.create_delivery_record(
+            delivery_in = delivery_in,
+            session = session
+        )
+        await session.commit()
+        delivery_data = DeliveryTSResponse.model_validate(delivery_from_db)
+        return delivery_data
+    except IntegrityError as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Delivery already exists"
+        )
+
+async def create_social_ts(
+    social_in: SocialTSCreate,
+    session: AsyncSession
+):
+    try:
+        social_from_db = await SocialTSRepositories.create_social_record(
+            social_in = social_in,
+            session = session
+        )
+        await session.commit()
+        social_data = SocialTSResponse.model_validate(social_from_db)
+        return social_data
+    except IntegrityError as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Social already exists"
+        )
+
+async def create_predicted_ts(
+    predicted_in: PredictedSalesTSCreate,
+    session: AsyncSession
+):
+    try:
+        predicted_from_db = await PredictedSalesTSRepositories.create_predict_sales_record(
+            predict_sales_in = predicted_in,
+            session = session
+        )
+        await session.commit()
+        predicted_data = PredictedSalesTSResponse.model_validate(predicted_from_db)
+        return predicted_data
+    except IntegrityError as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Predicted already exists"
+        )
+
 async def create_stocks_bulk(
     stocks_in: list[StockTSCreate],
     session: AsyncSession
@@ -68,6 +155,75 @@ async def create_sales_bulk(
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=409, detail="Sales records already exist")
+
+async def create_prices_bulk(
+    prices_in: list[PriceTSCreate],
+    session: AsyncSession
+) -> list[PriceTSResponse]:
+    try:
+        prices_from_db = await PriceTSRepositories.create_prices_bulk(prices_in=prices_in, session=session)
+        await session.commit()
+        return [PriceTSResponse.model_validate(p) for p in prices_from_db]
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="Prices records already exist")
+
+async def create_deliveries_bulk(
+    deliveries_in: list[DeliveryTSCreate],
+    session: AsyncSession
+) -> list[DeliveryTSResponse]:
+    try:
+        deliveries_from_db = await DeliveryTSRepositories.create_deliveries_bulk(deliveries_in=deliveries_in, session=session)
+        await session.commit()
+        return [DeliveryTSResponse.model_validate(d) for d in deliveries_from_db]
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="Deliveries records already exist")
+
+async def create_socials_bulk(
+    socials_in: list[SocialTSCreate],
+    session: AsyncSession
+) -> list[SocialTSResponse]:
+    try:
+        socials_from_db = await SocialTSRepositories.create_socials_bulk(social_in=socials_in, session=session)
+        await session.commit()
+        return [SocialTSResponse.model_validate(s) for s in socials_from_db]
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="Socials records already exist")
+
+async def create_predicted_sales_bulk(
+    predicted_sales_in: list[PredictedSalesTSCreate],
+    session: AsyncSession
+) -> list[PredictedSalesTSResponse]:
+    try:
+        predicted_sales_from_db = await PredictedSalesTSRepositories.create_predict_sales_bulk(predict_sales_in=predicted_sales_in, session=session)
+        await session.commit()
+        return [PredictedSalesTSResponse.model_validate(p) for p in predicted_sales_from_db]
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="Predicted sales records already exist")
+
+
+async def process_full(data_pack: dict, session: AsyncSession):
+    try:
+        await StockTSRepositories.create_stocks_bulk(data_pack["stocks"], session)
+
+        if data_pack.get("sales"):
+            await SalesProxyTSRepositories.create_sales_bulk(data_pack["sales"], session)
+
+        await PriceTSRepositories.create_prices_bulk(data_pack["prices"], session)
+        await DeliveryTSRepositories.create_deliveries_bulk(data_pack["deliveries"], session)
+        await SocialTSRepositories.create_socials_bulk(data_pack["socials"], session)
+
+        if data_pack.get("predicted_sales"):
+            await PredictedSalesTSRepositories.create_predict_sales_bulk(data_pack["predicted_sales"], session)
+
+        await session.commit()
+        return {"status": "success"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Full sync failed: {str(e)}")
 
 async def get_stock_history(
     product_id: int,
@@ -93,6 +249,54 @@ async def get_sales_history(
         limit=limit
     )
     return [SalesProxyTSResponse.model_validate(s) for s in sales]
+
+async def get_prices_history(
+    product_id: int,
+    session: AsyncSession,
+    limit: int = 30
+) -> list[PriceTSResponse]:
+    prices = await PriceTSRepositories.read_prices_history(
+        product_id=product_id,
+        session=session,
+        limit=limit
+    )
+    return [PriceTSResponse.model_validate(p) for p in prices]
+
+async def get_deliveries_history(
+    product_id: int,
+    session: AsyncSession,
+    limit: int = 30
+) -> list[DeliveryTSResponse]:
+    deliveries = await DeliveryTSRepositories.read_delivery_history(
+        product_id=product_id,
+        session=session,
+        limit=limit
+    )
+    return [DeliveryTSResponse.model_validate(d) for d in deliveries]
+
+async def get_socials_history(
+    product_id: int,
+    session: AsyncSession,
+    limit: int = 30
+) -> list[SocialTSResponse]:
+    socials = await SocialTSRepositories.read_socials_history(
+        product_id=product_id,
+        session=session,
+        limit=limit
+    )
+    return [SocialTSResponse.model_validate(s) for s in socials]
+
+async def get_predicted_sales_history(
+    product_id: int,
+    session: AsyncSession,
+    limit: int = 30
+) -> list[PredictedSalesTSResponse]:
+    predicted_sales = await PredictedSalesTSRepositories.read_predict_sales_history(
+        product_id=product_id,
+        session=session,
+        limit=limit
+    )
+    return [PredictedSalesTSResponse.model_validate(ps) for ps in predicted_sales]
 
 def calculate_proxy_sales(
         stocks_in: list[StockTSCreate],
