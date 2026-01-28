@@ -19,7 +19,7 @@ async def create_stock_record(
 async def create_stocks_bulk(
         stock_in: list[StockTSCreate],
         session: AsyncSession
-):
+) -> list[StockTS]:
     if not stock_in:
         return []
 
@@ -32,7 +32,7 @@ async def create_stocks_bulk(
     ).returning(StockTS)
 
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def read_stock_latest(

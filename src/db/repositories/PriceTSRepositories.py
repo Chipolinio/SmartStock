@@ -12,14 +12,14 @@ async def create_price_record(price_in: PriceTSCreate, session: AsyncSession) ->
     session.add(db_price)
     return db_price
 
-async def create_prices_bulk(prices_in: list[PriceTSCreate], session: AsyncSession):
+async def create_prices_bulk(prices_in: list[PriceTSCreate], session: AsyncSession) -> list[PriceTS]:
     if not prices_in:
         return []
     prices_data = [p.model_dump() for p in prices_in]
     stmt = insert(PriceTS).values(prices_data)
     stmt = stmt.on_conflict_do_nothing(index_elements=['product_id', 'dt']).returning(PriceTS)
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 async def read_price_latest(product_id: int, session: AsyncSession) -> PriceTS | None:
     stmt = select(PriceTS).where(PriceTS.product_id == product_id).order_by(desc(PriceTS.dt)).limit(1)

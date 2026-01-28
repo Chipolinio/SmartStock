@@ -9,11 +9,19 @@ from src.services import ProductService
 router = APIRouter()
 
 @router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-async def create_product(
+async def create_product_single(
         product: ProductCreate,
         session: AsyncSession = Depends(get_db)
 ):
     return await ProductService.create_product(product = product, session = session)
+
+@router.post("/bulk", response_model=List[ProductResponse], status_code=status.HTTP_201_CREATED)
+async def create_product(
+        products: List[ProductCreate],
+        session: AsyncSession = Depends(get_db)
+):
+    return await ProductService.create_products_bulk(products = products, session = session)
+
 
 @router.get("/{product_id}", response_model=ProductResponse, status_code=status.HTTP_200_OK)
 async def get_product(

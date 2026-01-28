@@ -20,7 +20,7 @@ async def create_sale_record(
 async def create_sales_bulk(
         sales_in: list[SalesProxyTSCreate],
         session: AsyncSession
-):
+) -> list[SalesProxyTS]:
     if not sales_in:
         return []
 
@@ -33,7 +33,7 @@ async def create_sales_bulk(
     ).returning(SalesProxyTS)
 
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 

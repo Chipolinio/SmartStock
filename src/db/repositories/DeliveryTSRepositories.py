@@ -12,14 +12,14 @@ async def create_delivery_record(delivery_in: DeliveryTSCreate, session: AsyncSe
     session.add(db_delivery)
     return db_delivery
 
-async def create_deliveries_bulk(deliveries_in: list[DeliveryTSCreate], session: AsyncSession):
+async def create_deliveries_bulk(deliveries_in: list[DeliveryTSCreate], session: AsyncSession)  -> list[DeliveryTS]:
     if not deliveries_in:
         return []
     deliveries_data = [d.model_dump() for d in deliveries_in]
     stmt = insert(DeliveryTS).values(deliveries_data)
     stmt = stmt.on_conflict_do_nothing(index_elements=['product_id', 'dt']).returning(DeliveryTS)
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 async def read_latest_delivery(product_id: int, session: AsyncSession) -> DeliveryTS | None:
     stmt = select(DeliveryTS).where(DeliveryTS.product_id == product_id).order_by(desc(DeliveryTS.dt)).limit(1)

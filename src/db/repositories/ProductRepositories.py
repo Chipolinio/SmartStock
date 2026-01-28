@@ -1,4 +1,5 @@
 from sqlalchemy import select, delete
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Product
@@ -15,6 +16,27 @@ async def create_product(
     await session.refresh(db_product)
     return db_product
 
+async def create_product_bulk(
+    products_in: list[ProductCreate],
+    session: AsyncSession
+) -> list[Product]:
+    if not products_in:
+        return []
+
+    products_data = [p.model_dump() for p in products_in]
+    stmt = insert(Product).values(products_data)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=['product_id'],
+        set_={
+            "name": stmt.excluded.name,
+            "brand": stmt.excluded.brand,
+            "subject": stmt.excluded.subject,
+            "entity": stmt.excluded.entity,
+        }
+    ).returning(Product)
+
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
 
 async def read_product(
         product_id: int,

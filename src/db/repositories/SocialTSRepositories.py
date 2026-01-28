@@ -12,14 +12,17 @@ async def create_social_record(social_in: SocialTSCreate, session: AsyncSession)
     session.add(db_social)
     return db_social
 
-async def create_socials_bulk(social_in: list[SocialTSCreate], session: AsyncSession):
+async def create_socials_bulk(
+        social_in: list[SocialTSCreate],
+        session: AsyncSession
+) -> list[SocialTS]:
     if not social_in:
         return []
     social_data = [s.model_dump() for s in social_in]
     stmt = insert(SocialTS).values(social_data)
     stmt = stmt.on_conflict_do_nothing(index_elements=['product_id', 'dt']).returning(SocialTS)
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 async def read_social_latest(product_id: int, session: AsyncSession) -> SocialTS | None:
     stmt = select(SocialTS).where(SocialTS.product_id == product_id).order_by(desc(SocialTS.dt)).limit(1)
