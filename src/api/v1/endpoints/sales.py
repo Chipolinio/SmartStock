@@ -105,7 +105,7 @@ async def process_full_data_sync(
     payload: FullPayload,
     session: AsyncSession = Depends(get_db)
 ):
-    return await SalesService.process_full(data_pack=payload.model_dump(), session=session)
+    return await SalesService.process_full(data_pack=payload, session=session)
 
 @router.get("/stock/{product_id}", response_model=List[StockTSResponse])
 async def get_stock_history(

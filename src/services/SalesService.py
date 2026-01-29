@@ -1,8 +1,8 @@
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import defer
 
+from src.db.schemas.DataPack import FullPayload
 from src.db.schemas.StockTS import StockTSCreate, StockTSResponse
 from src.db.schemas.SalesProxyTS import SalesProxyTSCreate, SalesProxyTSResponse
 from src.db.schemas.PriceTS import PriceTSCreate, PriceTSResponse
@@ -205,26 +205,29 @@ async def create_predicted_sales_bulk(
         raise HTTPException(status_code=409, detail="Predicted sales records already exist")
 
 
-async def process_full(data_pack: dict, session: AsyncSession):
+async def process_full(data_pack: FullPayload, session: AsyncSession):
     try:
-        await StockTSRepositories.create_stocks_bulk(data_pack["stocks"], session)
 
-        if data_pack.get("sales"):
-            await SalesProxyTSRepositories.create_sales_bulk(data_pack["sales"], session)
+        analytics_res = await analytics_data(data_pack.stocks, session)
 
-        await PriceTSRepositories.create_prices_bulk(data_pack["prices"], session)
-        await DeliveryTSRepositories.create_deliveries_bulk(data_pack["deliveries"], session)
-        await SocialTSRepositories.create_socials_bulk(data_pack["socials"], session)
-
-        if data_pack.get("predicted_sales"):
-            await PredictedSalesTSRepositories.create_predict_sales_bulk(data_pack["predicted_sales"], session)
+        await PriceTSRepositories.create_prices_bulk(data_pack.prices, session)
+        await DeliveryTSRepositories.create_deliveries_bulk(data_pack.deliveries, session)
+        await SocialTSRepositories.create_socials_bulk(data_pack.socials, session)
 
         await session.commit()
-        return {"status": "success"}
+
+        return {
+            "status": "success",
+            "processed_stocks": analytics_res.get("stocks_processed"),
+            "detected_sales": analytics_res.get("sales_detected")
+        }
     except Exception as e:
         await session.rollback()
-        raise HTTPException(status_code=500, detail=f"Full sync failed: {str(e)}")
-
+        print(f"DEBUG: Error in process_full: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Full sync failed: {str(e)}"
+        )
 async def get_stock_history(
     product_id: int,
     session: AsyncSession,

@@ -14,7 +14,6 @@ class FullPayload(BaseModel):
     deliveries: List[DeliveryTSCreate]
     socials: List[SocialTSCreate]
     sales: Optional[List[SalesProxyTSCreate]] = None
-    predicted_sales: Optional[List[PredictedSalesTSCreate]] = None
 
     class Config:
         from_attributes = True
