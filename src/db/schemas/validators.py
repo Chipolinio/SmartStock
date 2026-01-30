@@ -9,7 +9,7 @@ def validate_clean_text(v: Any) -> str:
         raise ValueError("Field cannot be empty or null")
 
     v = str(v).strip()
-    if not re.match(r"^[a-zA-Zа-яА-Я0-9\s\-\.\(\)\&№]+$", v):
+    if not re.match(r"^[a-zA-Zа-яА-Я0-9\s\-\.\(\)\&№,\/\+]+$", v):
         raise ValueError("Text contains prohibited special characters")
 
     if len(v) < 2:
