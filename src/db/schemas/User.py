@@ -1,5 +1,6 @@
 from typing import Annotated, Optional
 from enum import Enum
+from datetime import date
 
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from pydantic import field_validator, StrictStr, StrictInt
@@ -35,6 +36,10 @@ class UserBase(BaseModel):
         False,
         description="Статус подписки PRO"
     )]
+    is_active: Annotated[bool, Field(
+        True,
+        description="Статус активности пользователя"
+    )]
 
     model_config = ConfigDict(str_strip_whitespace=True)
 
@@ -53,6 +58,10 @@ class UserResponse(UserBase):
         ...,
         ge=1,
         description="Внутренний ID записи в БД (из Base)"
+    )]
+    created_at: Annotated[date, Field(
+        ...,
+        description="Дата регистрации"
     )]
 
     model_config = ConfigDict(from_attributes=True)
@@ -76,6 +85,7 @@ class UserUpdate(BaseModel):
         None,
         description="Статус подписки PRO"
     )]
+    is_active: Annotated[Optional[bool], Field(None)]
 
     @field_validator("email", mode="after")
     @classmethod
@@ -92,3 +102,18 @@ class UserInDB(UserResponse):
         ...,
         description="хэш пароль из колонки password_hash"
     )]
+
+
+class UserLogin(BaseModel):
+    email: Annotated[EmailStr, Field(
+        ...,
+        description="Электронная почта пользователя"
+    )]
+    password: Annotated[str, Field(
+        ...,
+        min_length=8,
+        max_length=100,
+        description="Пароль"
+    )]
+
+    model_config = ConfigDict(str_strip_whitespace=True)

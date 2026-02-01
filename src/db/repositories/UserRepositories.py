@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import User
 from src.db.schemas.User import UserCreate, UserUpdate
+from src.utils.security import get_password_hash
 
 async def create_user(
         user_in: UserCreate,
@@ -11,11 +12,12 @@ async def create_user(
     data = user_in.model_dump()
 
     plain_password = data.pop("password")
-    data["password_hash"] = f"hashed_{plain_password}"
+    data["password_hash"] = get_password_hash(plain_password)
 
     db_user = User(**data)
     session.add(db_user)
     await session.commit()
+    await session.refresh(db_user)
     return db_user
 
 
