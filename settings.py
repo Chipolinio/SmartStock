@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 load_dotenv()
 
-BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 class Settings(BaseSettings):
     POSTGRES_DB: str
@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     POSTGRES_HOST: str
     POSTGRES_PORT: int
+
+    LOG_LEVEL: str = "INFO"
+
+    JWT_PRIVATE_KEY: Path = PROJECT_ROOT / "certs" / "private.pem"
+    JWT_PUBLIC_KEY: Path = PROJECT_ROOT / "certs" / "public.pem"
+    ALGORITHM: str = "RS256"
 
     @property
     def DATABASE_URL(self) -> str:
