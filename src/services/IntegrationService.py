@@ -23,35 +23,33 @@ class WBScraper:
 
     def _transform(self, raw_data: List[dict]) -> dict:
         today = date.today().isoformat()
-        # Структура строго под твою схему FullPayload
         payload = {
             "stocks": [],
             "prices": [],
             "deliveries": [],
             "socials": [],
-            "sales": []  # Optional в схеме
+            "sales": []
         }
 
         for p in raw_data:
             pid = p.get("id")
 
-            # ЧЕСТНЫЙ РАСЧЕТ QTY (по всем размерам и складам)
             total_qty = 0
             for size in p.get("sizes", []):
                 for wh in size.get("stocks", []):
                     total_qty += wh.get("qty", 0)
 
-            # ЦЕНА
             price_info = p.get("sizes", [{}])[0].get("price", {})
-            f_price = price_info.get("product", 0) // 100
-            orig_price = price_info.get("basic", 0) // 100
-            disc = round((1 - (f_price / orig_price)) * 100, 2) if orig_price > 0 else 0
+            f_price = (price_info.get("product", 0) // 100) or 0
 
-            # Данные для FullPayload
+            # --- ЛОГИКА ФИЛЬТРА АНОМАЛИЙ ---
+            # Если цена > 10к, мы позже в сервисе при расчете дельты
+            # будем помечать большие скачки как "confidence = 0.5"
+            # А пока просто собираем текущие данные
+
             payload["stocks"].append({"product_id": pid, "dt": today, "quantity": total_qty})
-            payload["prices"].append(
-                {"product_id": pid, "dt": today, "price_sale": f_price, "discount_pct": float(disc)})
-            payload["deliveries"].append({"product_id": pid, "dt": today, "delivery_days": 1})  # Заглушка
+            payload["prices"].append({"product_id": pid, "dt": today, "price_sale": f_price, "discount_pct": 0})
+            payload["deliveries"].append({"product_id": pid, "dt": today, "delivery_days": 2})  # 2 дня - реалистичнее
             payload["socials"].append({
                 "product_id": pid,
                 "dt": today,

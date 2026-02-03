@@ -1,4 +1,5 @@
 import pandas as pd
+import math
 import numpy as np
 import logging
 from fastapi import HTTPException, status
@@ -21,18 +22,28 @@ def apply_abc_xyz_classification(df: pd.DataFrame) -> pd.DataFrame:
     df['cv'] = df['sales_std'] / df['sales_avg'].replace(0, np.nan)
     df['xyz'] = np.where(df['cv'] <= 0.1, 'X',
                          np.where(df['cv'] <= 0.25, 'Y', 'Z'))
+
+    df['abc'] = df['abc'].fillna('C')
     df['xyz'] = df['xyz'].fillna('Z')
+    df['cv'] = df['cv'].fillna(0)
 
     return df
 
 
 def get_product_scoring(row: pd.Series) -> float:
-    rating_norm = float(row.get('avg_rating') or 0) / 5
-    reviews_norm = np.log1p(float(row.get('max_feedbacks') or 0)) / 10
-    delivery_norm = 1 / (float(row.get('avg_delivery') or 5) + 1)
+    try:
+        rating_norm = float(row.get('avg_rating') or 0) / 5
+        reviews_norm = np.log1p(float(row.get('max_feedbacks') or 0)) / 10
+        delivery_norm = 1 / (float(row.get('avg_delivery') or 5) + 1)
 
-    score = (rating_norm * 0.4) + (reviews_norm * 0.3) + (delivery_norm * 0.3)
-    return round(float(np.clip(score, 0, 1)), 2)
+        score = (rating_norm * 0.4) + (reviews_norm * 0.3) + (delivery_norm * 0.3)
+
+        if not math.isfinite(score):
+            return 0.0
+
+        return round(float(np.clip(score, 0, 1)), 2)
+    except:
+        return 0.0
 
 
 def get_recommendation_text(row: pd.Series, score: float) -> str:
@@ -64,22 +75,23 @@ async def run_full_analytics(user_id: int, session: AsyncSession, days: int = 30
         df = pd.DataFrame([row for row in result])
 
         df = apply_abc_xyz_classification(df)
-
+        df = df.replace({np.nan: 0, np.inf: 0, -np.inf: 0})
         final_results = []
         for _, row in df.iterrows():
             score = get_product_scoring(row)
 
-            revenue_val = float(row.get('total_revenue') or 0)
+            if not np.isfinite(score):
+                score = 0.0
 
             final_results.append({
                 "product_id": int(row['product_id']),
-                "subject": row['subject'],
+                "subject": str(row['subject']) if row['subject'] else "Неизвестно",
                 "metrics": {
-                    "abc": row['abc'],
-                    "xyz": row['xyz'],
+                    "abc": str(row['abc']),
+                    "xyz": str(row['xyz']),
                     "segment": f"{row['abc']}{row['xyz']}",
-                    "score": score,
-                    "revenue": round(revenue_val, 2)
+                    "score": float(score),  # Явное приведение
+                    "revenue": round(float(row.get('total_revenue') or 0), 2)
                 },
                 "advice": get_recommendation_text(row, score)
             })
