@@ -2,7 +2,7 @@ from typing import Annotated, Optional
 from pydantic import BaseModel, Field, ConfigDict, StrictInt
 from pydantic import field_validator
 
-from .validators import validate_clean_text
+from src.utils.validators import validate_clean_text
 
 class ProductBase(BaseModel):
     product_id: Annotated[int, Field(

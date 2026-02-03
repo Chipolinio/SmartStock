@@ -1,19 +1,36 @@
-from pydantic import BaseModel
-from typing import List, Optional
+from typing import Annotated, List, Optional
+from pydantic import BaseModel, Field, ConfigDict
 
-from src.db.schemas.StockTS import StockTSCreate, StockTSResponse
-from src.db.schemas.SalesProxyTS import SalesProxyTSCreate, SalesProxyTSResponse
-from src.db.schemas.PriceTS import PriceTSCreate, PriceTSResponse
-from src.db.schemas.DeliveryTS import DeliveryTSCreate, DeliveryTSResponse
-from src.db.schemas.SocialTS import SocialTSCreate, SocialTSResponse
-from src.db.schemas.PredictedSalesTS import PredictedSalesTSCreate, PredictedSalesTSResponse
+from src.db.schemas.StockTS import StockTSCreate
+from src.db.schemas.SalesProxyTS import SalesProxyTSCreate
+from src.db.schemas.PriceTS import PriceTSCreate
+from src.db.schemas.DeliveryTS import DeliveryTSCreate
+from src.db.schemas.SocialTS import SocialTSCreate
 
 class FullPayload(BaseModel):
-    stocks: List[StockTSCreate]
-    prices: List[PriceTSCreate]
-    deliveries: List[DeliveryTSCreate]
-    socials: List[SocialTSCreate]
-    sales: Optional[List[SalesProxyTSCreate]] = None
+    stocks: Annotated[List[StockTSCreate], Field(
+        ...,
+        description="Список данных по остаткам (timeseries)"
+    )]
+    prices: Annotated[List[PriceTSCreate], Field(
+        ...,
+        description="Список данных по ценам"
+    )]
+    deliveries: Annotated[List[DeliveryTSCreate], Field(
+        ...,
+        description="Данные по срокам доставки"
+    )]
+    socials: Annotated[List[SocialTSCreate], Field(
+        ...,
+        description="Социальные метрики (рейтинг, отзывы)"
+    )]
+    sales: Annotated[Optional[List[SalesProxyTSCreate]], Field(
+        None,
+        description="Опциональный список зафиксированных продаж"
+    )]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        str_strip_whitespace=True
+    )

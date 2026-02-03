@@ -1,10 +1,9 @@
-from dataclasses import field
 from typing import Annotated
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 from datetime import date
 
-from .validators import validate_strict_date
+from src.utils.validators import validate_strict_date
 
 
 class BaseTS(BaseModel):

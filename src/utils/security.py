@@ -38,6 +38,6 @@ def set_auth_token(response: Response, token: str, key: str, max_age: int = 1800
         value=token,
         httponly=True,
         samesite="lax",
-        secure=True,
+        secure=False,
         max_age=max_age
     )

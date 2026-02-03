@@ -1,7 +1,6 @@
 import re
 from datetime import date
 from typing import Annotated, Any
-from pydantic import AfterValidator
 
 
 def validate_clean_text(v: Any) -> str:

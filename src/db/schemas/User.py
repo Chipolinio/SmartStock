@@ -3,9 +3,9 @@ from enum import Enum
 from datetime import date
 
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
-from pydantic import field_validator, StrictStr, StrictInt
+from pydantic import field_validator, StrictInt
 
-from .validators import validate_email_strict
+from src.utils.validators import validate_email_strict
 
 
 class UserRole(str, Enum):
