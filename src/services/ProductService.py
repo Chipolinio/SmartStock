@@ -20,6 +20,7 @@ async def create_product(product: ProductCreate, session: AsyncSession):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Product already exists")
+
 async def create_products_bulk(products: list[ProductCreate], session: AsyncSession):
     try:
         products_form_db = await ProductRepositories.create_product_bulk(
