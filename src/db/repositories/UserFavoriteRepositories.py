@@ -1,4 +1,4 @@
-from sqlalchemy import select, delete, join
+from sqlalchemy import select, delete, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Sequence
 
@@ -14,14 +14,18 @@ async def create_user_favorites(
         UserFavorite.product_id == fav_in.product_id
     )
     result = await session.execute(check_stmt)
-    if result.scalar_one_or_none():
+    if result.scalars().first():
         return None
 
     db_fav = UserFavorite(**fav_in.model_dump())
     session.add(db_fav)
-    await session.commit()
-    await session.refresh(db_fav)
+    await session.flush()
     return db_fav
+
+async def check_product_exists(product_id: int, session: AsyncSession) -> bool:
+    stmt = select(exists().where(Product.product_id == product_id))
+    result = await session.execute(stmt)
+    return result.scalar()
 
 async def read_user_favorites(
         user_id: int,
