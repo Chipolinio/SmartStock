@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict, Any
 
-from src.db.repositories.AnalyticsRepository import get_analytics_dataset
+from src.db.repositories.AnalyticsRepository import get_analytics_dataset, get_price_changes
 
 logger = logging.getLogger(__name__)
 
@@ -116,3 +116,35 @@ async def run_full_analytics(user_id: int, session: AsyncSession, days: int = 30
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Внутренняя ошибка сервиса аналитики"
         )
+
+
+async def check_price_alerts(user_id: int, session: AsyncSession, threshold: float = 5.0):
+    raw_changes = await get_price_changes(session=session, user_id=user_id)
+
+    alerts = []
+    for row in raw_changes:
+        try:
+            # Преобразуем в float и проверяем на None/0
+            prev = float(row.previous_price or 0)
+            curr = float(row.current_price or 0)
+
+            # ЗАЩИТА: Если предыдущая цена 0, мы не можем посчитать % изменения
+            if prev <= 0:
+                continue
+
+            diff_pct = ((prev - curr) / prev) * 100
+
+            if diff_pct >= threshold and curr > 0:
+                alerts.append({
+                    "product_id": row.product_id,
+                    "name": row.name,
+                    "old_price": prev,
+                    "new_price": curr,
+                    "diff_pct": round(diff_pct, 1),
+                    "date": row.dt
+                })
+        except (ZeroDivisionError, TypeError, ValueError) as e:
+            logger.warning(f"Ошибка расчета алерта для товара {row.product_id}: {e}")
+            continue
+
+    return alerts

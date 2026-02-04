@@ -7,7 +7,6 @@ from src.db.models import Product, PriceTS, SalesProxyTS, SocialTS, DeliveryTS, 
 async def get_analytics_dataset(session: AsyncSession, user_id: int, days: int = 30):
     start_date = date.today() - timedelta(days=days)
 
-    # 1. Считаем чистую выручку и продажи без влияния других таблиц
     sales_agg = (
         select(
             PriceTS.product_id,
@@ -23,7 +22,6 @@ async def get_analytics_dataset(session: AsyncSession, user_id: int, days: int =
         .group_by(PriceTS.product_id)
     ).subquery("sales_agg")
 
-    # 2. Собираем финальный бандл метрик
     base_metrics = (
         select(
             Product.product_id,
@@ -53,7 +51,6 @@ async def get_analytics_dataset(session: AsyncSession, user_id: int, days: int =
         )
     ).subquery("base_metrics")
 
-    # 3. Оконные функции (оставляем как было, но с NULLIF)
     final_stmt = select(
         base_metrics,
         (base_metrics.c.total_revenue /
@@ -63,4 +60,36 @@ async def get_analytics_dataset(session: AsyncSession, user_id: int, days: int =
     )
 
     result = await session.execute(final_stmt)
+    return result.all()
+
+async def get_price_changes(session: AsyncSession, user_id: int):
+    subq = (
+        select(
+            PriceTS.product_id,
+            PriceTS.dt,
+            PriceTS.price_sale.label("current_price"),
+            func.lag(PriceTS.price_sale).over(
+                partition_by=PriceTS.product_id,
+                order_by=PriceTS.dt
+            ).label("previous_price")
+        )
+        .join(UserFavorite, UserFavorite.product_id == PriceTS.product_id)
+        .where(UserFavorite.user_id == user_id)
+    ).subquery()
+
+    stmt = (
+        select(
+            Product.name,
+            subq.c.product_id,
+            subq.c.dt,
+            subq.c.current_price,
+            subq.c.previous_price
+        )
+        .join(Product, Product.product_id == subq.c.product_id)
+        .where(subq.c.previous_price.isnot(None))
+        .where(subq.c.current_price != subq.c.previous_price)
+        .order_by(subq.c.dt.desc())
+    )
+
+    result = await session.execute(stmt)
     return result.all()

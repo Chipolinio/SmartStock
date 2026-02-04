@@ -16,3 +16,15 @@ async def analytics(
         session: AsyncSession = Depends(get_db)
 ):
     return await AnalyticsService.run_full_analytics(user_id=user_data["user_id"], days=days, session=session)
+
+@router.get("/price-alerts", status_code=200)
+async def get_product_price_alerts(
+    user_id: int = Query(gt=0, description="ID пользователя для проверки избранного"),
+    threshold: float = Query(5.0, gt=0, le=100, description="Порог падения цены в %"),
+    session: AsyncSession = Depends(get_db)
+):
+    return await AnalyticsService.check_price_alerts(
+        user_id=user_id,
+        session=session,
+        threshold=threshold
+    )
