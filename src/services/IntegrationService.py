@@ -3,9 +3,18 @@ import httpx
 from datetime import date
 from typing import List
 from curl_cffi import requests
+import re
 
 API_BASE_URL = "http://127.0.0.1:8000"
 
+
+def clean_for_pydantic(text: str, default: str = "Unknown") -> str:
+    if not text or str(text).strip() == "":
+        return default
+
+    cleaned = re.sub(r'[^a-zA-Zа-яА-Я0-9\s\-\.\(\)\&№,\/\+]', '', str(text))
+    result = cleaned.strip()
+    return result if result else default
 
 class WBScraper:
     def __init__(self):
@@ -28,11 +37,24 @@ class WBScraper:
             "prices": [],
             "deliveries": [],
             "socials": [],
-            "sales": []
+            "products_update": []
         }
 
         for p in raw_data:
             pid = p.get("id")
+
+            clean_name = clean_for_pydantic(p.get("name", ""), default="Product " + str(pid))
+            clean_brand = clean_for_pydantic(p.get("brand", ""), default="Generic")
+            raw_entity = p.get("entity", "General")
+            clean_subject = clean_for_pydantic(raw_entity, default="General")
+
+            payload["products_update"].append({
+                "product_id": pid,
+                "name": clean_name[:200],
+                "brand": clean_brand[:50] if clean_brand else "Generic",
+                "subject": clean_subject,
+                "entity": raw_entity
+            })
 
             total_qty = 0
             for size in p.get("sizes", []):
@@ -65,19 +87,37 @@ class WBScraper:
             print("База пуста.")
             return
 
-        # Тянем данные с WB
-        nm_str = ";".join(map(str, articles))
-        url = f"https://card.wb.ru/cards/v4/detail?appType=1&curr=rub&dest=-1257786&nm={nm_str}"
+        chunk_size = 100
+        all_raw_products = []
 
-        resp = self.session.get(url)
-        if resp.status_code == 200:
-            raw_products = resp.json().get("products", [])
-            payload = self._transform(raw_products)
+        for i in range(0, len(articles), chunk_size):
+            chunk = articles[i:i + chunk_size]
+            nm_str = ";".join(map(str, chunk))
 
-            # Отправка
-            async with httpx.AsyncClient(timeout=20.0) as client:
-                r = await client.post(f"{API_BASE_URL}/sales/full-payload", json=payload)
-                print(f"Статус: {r.status_code}, Ответ: {r.text}")
+            url = f"https://card.wb.ru/cards/v4/detail?appType=1&curr=rub&dest=-1257786&nm={nm_str}"
+
+            try:
+                resp = self.session.get(url)
+                if resp.status_code == 200:
+                    products = resp.json().get("data", {}).get("products", [])
+                    # Если в v4 лежит в data.products, берем оттуда
+                    if not products:
+                        products = resp.json().get("products", [])
+                    all_raw_products.extend(products)
+                print(f"Обработано артикулов: {len(all_raw_products)}")
+            except Exception as e:
+                print(f"Ошибка на чанке {i}: {e}")
+
+        if not all_raw_products:
+            print("WB ничего не вернул. Проверь URL или артикулы.")
+            return
+
+        payload = self._transform(all_raw_products)
+
+        # Отправка
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.post(f"{API_BASE_URL}/sales/full-payload", json=payload)
+            print(f"Статус: {r.status_code}, Ответ: {r.text}")
 
 
 if __name__ == "__main__":

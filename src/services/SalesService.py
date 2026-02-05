@@ -10,6 +10,7 @@ from src.db.schemas.DeliveryTS import DeliveryTSCreate, DeliveryTSResponse
 from src.db.schemas.SocialTS import SocialTSCreate, SocialTSResponse
 from src.db.schemas.PredictedSalesTS import PredictedSalesTSCreate, PredictedSalesTSResponse
 
+from src.db.repositories import ProductRepositories
 from src.db.repositories import (StockTSRepositories,
                                  SocialTSRepositories,
                                  SalesProxyTSRepositories,
@@ -207,9 +208,10 @@ async def create_predicted_sales_bulk(
 
 async def process_full(data_pack: FullPayload, session: AsyncSession):
     try:
+        if data_pack.products_update:
+            await ProductRepositories.bulk_update_products(data_pack.products_update, session)
 
         analytics_res = await analytics_data(data_pack.stocks, session)
-
         await PriceTSRepositories.create_prices_bulk(data_pack.prices, session)
         await DeliveryTSRepositories.create_deliveries_bulk(data_pack.deliveries, session)
         await SocialTSRepositories.create_socials_bulk(data_pack.socials, session)
@@ -218,16 +220,14 @@ async def process_full(data_pack: FullPayload, session: AsyncSession):
 
         return {
             "status": "success",
+            "metadata_updated": len(data_pack.products_update) if data_pack.products_update else 0,
             "processed_stocks": analytics_res.get("stocks_processed"),
             "detected_sales": analytics_res.get("sales_detected")
         }
     except Exception as e:
         await session.rollback()
-        print(f"DEBUG: Error in process_full: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Full sync failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=str(e))
+
 async def get_stock_history(
     product_id: int,
     session: AsyncSession,
@@ -343,8 +343,6 @@ async def analytics_data(
             created_sales_count = len(res_sales)
 
         res_stocks = await StockTSRepositories.create_stocks_bulk(stocks_in, session)
-
-        await session.commit()
 
         return {
             "status": "success",

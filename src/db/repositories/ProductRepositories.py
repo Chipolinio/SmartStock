@@ -89,9 +89,33 @@ async def update_product(
         setattr(db_product, key, value)
 
     session.add(db_product)
-    await session.commit()
-    await session.refresh(db_product)
+
     return db_product
+
+
+async def bulk_update_products(products_data: list[ProductUpdate], session: AsyncSession):
+    if not products_data:
+        return
+
+    data = [p.model_dump(exclude_unset=True) for p in products_data]
+
+    for item in data:
+        if not item.get("entity"):
+            item["entity"] = item.get("subject", "product")
+
+        stmt = insert(Product).values(item)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=['product_id'],
+            set_={
+                "name": stmt.excluded.name,
+                "brand": stmt.excluded.brand,
+                "subject": stmt.excluded.subject,
+                "entity": stmt.excluded.entity
+            }
+        )
+        await session.execute(stmt)
+
+    await session.flush()
 
 async def delete_product(
         product_id: int,
