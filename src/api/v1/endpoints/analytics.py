@@ -15,16 +15,51 @@ async def analytics(
         user_data: dict = Depends(get_user),
         session: AsyncSession = Depends(get_db)
 ):
-    return await AnalyticsService.run_full_analytics(user_id=user_data["user_id"], days=days, session=session)
+    return await AnalyticsService.run_analytics(
+        user_id=user_data["user_id"],
+        days=days,
+        session=session)
 
 @router.get("/price-alerts", status_code=200)
 async def get_product_price_alerts(
-    user_id: int = Query(gt=0, description="ID пользователя для проверки избранного"),
+    user_data: dict = Depends(get_user),
     threshold: float = Query(5.0, gt=0, le=100, description="Порог падения цены в %"),
     session: AsyncSession = Depends(get_db)
 ):
     return await AnalyticsService.check_price_alerts(
-        user_id=user_id,
+        user_id=user_data["user_id"],
         session=session,
         threshold=threshold
+    )
+
+@router.get("/matrix", status_code=status.HTTP_200_OK)
+async def get_matrix_abc_xyz(
+        user_data: dict = Depends(get_user),
+        session: AsyncSession = Depends(get_db)
+):
+    return await AnalyticsService.get_matrix_data(
+        user_id=user_data["user_id"],
+        session=session)
+
+@router.get("/category", status_code=status.HTTP_200_OK)
+async def get_category_share(
+        user_data: dict = Depends(get_user),
+        session: AsyncSession = Depends(get_db)
+):
+    return await AnalyticsService.get_category_share(
+        user_id=user_data["user_id"],
+        session=session)
+
+@router.get("/history/{product_id}", status_code=status.HTTP_200_OK)
+async def get_product_history(
+        product_id: int,
+        user_data: dict = Depends(get_user),
+        days: Annotated[int, Query(gt=0, le=365)] = 30,
+        session: AsyncSession = Depends(get_db)
+):
+    return await AnalyticsService.get_product_history(
+        product_id=product_id,
+        user_id=user_data["user_id"],
+        session=session,
+        days=days
     )

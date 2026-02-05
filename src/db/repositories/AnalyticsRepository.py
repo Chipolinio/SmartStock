@@ -4,6 +4,16 @@ from datetime import date, timedelta
 
 from src.db.models import Product, PriceTS, SalesProxyTS, SocialTS, DeliveryTS, UserFavorite
 
+async def check_user_favorite(session: AsyncSession, user_id: int, product_id: int) -> bool:
+    stmt = select(UserFavorite).where(
+        and_(
+            UserFavorite.user_id == user_id,
+            UserFavorite.product_id == product_id
+        )
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none() is not None
+
 async def get_analytics_dataset(session: AsyncSession, user_id: int, days: int = 30):
     start_date = date.today() - timedelta(days=days)
 
@@ -91,5 +101,24 @@ async def get_price_changes(session: AsyncSession, user_id: int):
         .order_by(subq.c.dt.desc())
     )
 
+    result = await session.execute(stmt)
+    return result.all()
+
+async def get_product_history_raw(session: AsyncSession, product_id: int, days: int = 30):
+    start_date = date.today() - timedelta(days=days)
+    stmt = (
+        select(
+            PriceTS.dt,
+            PriceTS.price_sale,
+            func.coalesce(SalesProxyTS.sales, 0).label("sales")
+        )
+        .outerjoin(SalesProxyTS, and_(
+            PriceTS.product_id == SalesProxyTS.product_id,
+            PriceTS.dt == SalesProxyTS.dt
+        ))
+        .where(PriceTS.product_id == product_id)
+        .where(PriceTS.dt >= start_date)
+        .order_by(PriceTS.dt.asc())
+    )
     result = await session.execute(stmt)
     return result.all()

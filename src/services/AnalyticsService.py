@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict, Any
 
-from src.db.repositories.AnalyticsRepository import get_analytics_dataset, get_price_changes
+from src.db.repositories import AnalyticsRepository
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +63,9 @@ def get_recommendation_text(row: pd.Series, score: float) -> str:
     return advice
 
 
-async def run_full_analytics(user_id: int, session: AsyncSession, days: int = 30) -> List[Dict[str, Any]]:
+async def run_analytics(user_id: int, session: AsyncSession, days: int = 30) -> List[Dict[str, Any]]:
     try:
-        result = await get_analytics_dataset(session=session, user_id=user_id, days=days)
+        result = await AnalyticsRepository.get_analytics_dataset(session=session, user_id=user_id, days=days)
         if not result:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -119,16 +119,14 @@ async def run_full_analytics(user_id: int, session: AsyncSession, days: int = 30
 
 
 async def check_price_alerts(user_id: int, session: AsyncSession, threshold: float = 5.0):
-    raw_changes = await get_price_changes(session=session, user_id=user_id)
+    raw_changes = await AnalyticsRepository.get_price_changes(session=session, user_id=user_id)
 
     alerts = []
     for row in raw_changes:
         try:
-            # Преобразуем в float и проверяем на None/0
             prev = float(row.previous_price or 0)
             curr = float(row.current_price or 0)
 
-            # ЗАЩИТА: Если предыдущая цена 0, мы не можем посчитать % изменения
             if prev <= 0:
                 continue
 
@@ -148,3 +146,77 @@ async def check_price_alerts(user_id: int, session: AsyncSession, threshold: flo
             continue
 
     return alerts
+
+
+async def get_matrix_data(user_id: int, session: AsyncSession):
+    try:
+        full_analytics = await run_analytics(user_id=user_id, session=session)
+        if not full_analytics:
+            return []
+
+        return [
+            {
+                "product_id": item["product_id"],
+                "revenue": item["metrics"]["revenue"],
+                "score": item["metrics"]["score"],
+                "segment": item["metrics"]["segment"],
+                "abc": item["metrics"]["abc"],
+                "xyz": item["metrics"]["xyz"]
+            } for item in full_analytics
+        ]
+    except Exception as e:
+        logger.error(f"Error generating matrix data for user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Ошибка при формировании матрицы аналитики"
+        )
+
+
+async def get_category_share(user_id: int, session: AsyncSession):
+    try:
+        full_analytics = await run_analytics(user_id=user_id, session=session)
+        if not full_analytics:
+            return []
+
+        df = pd.DataFrame(full_analytics)
+
+        df['revenue'] = df['metrics'].apply(lambda x: x.get('revenue', 0))
+
+        category_data = df.groupby('subject')['revenue'].sum().reset_index()
+        return category_data.to_dict(orient="records")
+
+    except KeyError as e:
+        logger.error(f"Missing key in analytics data: {str(e)}")
+        raise HTTPException(status_code=500, detail="Ошибка структуры данных аналитики")
+    except Exception as e:
+        logger.error(f"Error in category share: {str(e)}")
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
+
+
+async def get_product_history(product_id: int, user_id: int, session: AsyncSession, days: int = 30):
+    try:
+        is_favorite = await AnalyticsRepository.check_user_favorite(session, user_id, product_id)
+        if not is_favorite:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Доступ запрещен: товар не в вашем списке избранного"
+            )
+
+        rows = await AnalyticsRepository.get_product_history_raw(session, product_id, days)
+
+        if not rows:
+            return []
+
+        return [
+            {
+                "date": row.dt.isoformat() if hasattr(row.dt, 'isoformat') else str(row.dt),
+                "price": float(row.price_sale),
+                "sales": int(row.sales)
+            }
+            for row in rows
+        ]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in history for {product_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Ошибка при получении истории товара")
