@@ -11,19 +11,20 @@ API_BASE_URL = "http://127.0.0.1:8000"
 def clean_for_pydantic(text: str, default: str = "Unknown") -> str:
     if not text or str(text).strip() == "":
         return default
-
     cleaned = re.sub(r'[^a-zA-Zа-яА-Я0-9\s\-\.\(\)\&№,\/\+]', '', str(text))
     result = cleaned.strip()
     return result if result else default
+
 
 class WBScraper:
     def __init__(self):
         self.session = requests.Session(impersonate="safari15_5")
 
     async def get_articles_from_db(self) -> List[int]:
+        # Возвращаем твой лимит, чтобы не было бесконечных запросов
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
-                r = await client.get(f"{API_BASE_URL}/products/", params={"limit": 1000})
+                r = await client.get(f"{API_BASE_URL}/products/", params={"limit": 2500})
                 if r.status_code == 200:
                     return [p["product_id"] for p in r.json()]
             except Exception as e:
@@ -43,6 +44,16 @@ class WBScraper:
         for p in raw_data:
             pid = p.get("id")
 
+            # 1. Сначала цена и фильтр аномалий
+            price_info = p.get("sizes", [{}])[0].get("price", {})
+            f_price = (price_info.get("product", 0) // 100) or 0
+
+            # Пропускаем товар целиком, если цена аномальная,
+            # чтобы не засирать статистику и не ломать Pydantic на бэке
+            if f_price <= 0 or f_price > 500000:
+                continue
+
+            # 2. Метаданные
             clean_name = clean_for_pydantic(p.get("name", ""), default="Product " + str(pid))
             clean_brand = clean_for_pydantic(p.get("brand", ""), default="Generic")
             raw_entity = p.get("entity", "General")
@@ -56,22 +67,20 @@ class WBScraper:
                 "entity": raw_entity
             })
 
+            # 3. Остатки
             total_qty = 0
             for size in p.get("sizes", []):
                 for wh in size.get("stocks", []):
                     total_qty += wh.get("qty", 0)
 
-            price_info = p.get("sizes", [{}])[0].get("price", {})
-            f_price = (price_info.get("product", 0) // 100) or 0
-
-            # --- ЛОГИКА ФИЛЬТРА АНОМАЛИЙ ---
-            # Если цена > 10к, мы позже в сервисе при расчете дельты
-            # будем помечать большие скачки как "confidence = 0.5"
-            # А пока просто собираем текущие данные
+            # 4. Динамическая доставка (time1 + time2)
+            t1 = p.get("time1", 0)
+            t2 = p.get("time2", 0)
+            delivery_days = max(1, (t1 + t2) // 24)
 
             payload["stocks"].append({"product_id": pid, "dt": today, "quantity": total_qty})
             payload["prices"].append({"product_id": pid, "dt": today, "price_sale": f_price, "discount_pct": 0})
-            payload["deliveries"].append({"product_id": pid, "dt": today, "delivery_days": 2})  # 2 дня - реалистичнее
+            payload["deliveries"].append({"product_id": pid, "dt": today, "delivery_days": delivery_days})
             payload["socials"].append({
                 "product_id": pid,
                 "dt": today,
@@ -93,14 +102,12 @@ class WBScraper:
         for i in range(0, len(articles), chunk_size):
             chunk = articles[i:i + chunk_size]
             nm_str = ";".join(map(str, chunk))
-
             url = f"https://card.wb.ru/cards/v4/detail?appType=1&curr=rub&dest=-1257786&nm={nm_str}"
 
             try:
                 resp = self.session.get(url)
                 if resp.status_code == 200:
                     products = resp.json().get("data", {}).get("products", [])
-                    # Если в v4 лежит в data.products, берем оттуда
                     if not products:
                         products = resp.json().get("products", [])
                     all_raw_products.extend(products)
@@ -109,12 +116,11 @@ class WBScraper:
                 print(f"Ошибка на чанке {i}: {e}")
 
         if not all_raw_products:
-            print("WB ничего не вернул. Проверь URL или артикулы.")
+            print("WB ничего не вернул.")
             return
 
         payload = self._transform(all_raw_products)
 
-        # Отправка
         async with httpx.AsyncClient(timeout=20.0) as client:
             r = await client.post(f"{API_BASE_URL}/sales/full-payload", json=payload)
             print(f"Статус: {r.status_code}, Ответ: {r.text}")
