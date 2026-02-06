@@ -1,17 +1,44 @@
-from typing import Annotated, Optional
+from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict
+from datetime import date
+
+DimensionType = Literal["dt", "brand", "subject", "product_id"]
+MetricType = Literal["revenue", "sales", "rating", "abc", "xyz", "score", "recommendation"]
 
 class AnalyticsMetrics(BaseModel):
-    abc: Annotated[str, Field(..., pattern="^[A-C]$")]
-    xyz: Annotated[str, Field(..., pattern="^[X-Z]$")]
-    segment: Annotated[str, Field(..., description="Комбинация ABC-XYZ")]
-    score: Annotated[float, Field(..., ge=0, le=1)]
-    revenue: Annotated[float, Field(..., description="Выручка за период")]
+    revenue: Optional[float] = None
+    sales: Optional[int] = None
+    abc: Optional[str] = None
+    xyz: Optional[str] = None
+    score: Optional[float] = None
+    avg_rating: Optional[float] = None
 
-class ProductAnalyticsResponse(BaseModel):
-    product_id: Annotated[int, Field(..., gt=0)]
-    subject: Annotated[Optional[str], Field(None)]
-    metrics: Annotated[AnalyticsMetrics, Field(...)]
-    advice: Annotated[str, Field(...)]
+class AnalyticsEntry(BaseModel):
+    dimensions: Dict[DimensionType, Any]
+    metrics: AnalyticsMetrics
+    recommendation: Optional[str] = None
 
+class AnalyticsRequest(BaseModel):
+    date_from: date
+    date_to: date
+    dimensions: List[DimensionType] = Field(..., min_length=1)
+    metrics: List[MetricType] = Field(..., min_length=1)
+    filters: Optional[Dict[str, List[Any]]] = Field(default_factory=dict)
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "date_from": "2026-02-01",
+                "date_to": "2026-02-06",
+                "dimensions": ["subject"],
+                "metrics": ["revenue", "sales", "abc"],
+                "filters": {}
+            }
+        }
+    )
+
+class AnalyticsResponse(BaseModel):
+    status: str = "success"
+    data: List[AnalyticsEntry]
     model_config = ConfigDict(from_attributes=True)
+

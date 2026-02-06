@@ -1,124 +1,112 @@
-from sqlalchemy import select, func, and_, over
+from sqlalchemy import select, func, and_, over, case
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import date, timedelta
+from typing import List, Dict, Any
+from src.db.models import Product, SalesProxyTS, PriceTS, SocialTS, DeliveryTS, UserFavorite
+from src.db.schemas.Analytics import AnalyticsRequest
 
-from src.db.models import Product, PriceTS, SalesProxyTS, SocialTS, DeliveryTS, UserFavorite
 
-async def check_user_favorite(session: AsyncSession, user_id: int, product_id: int) -> bool:
-    stmt = select(UserFavorite).where(
-        and_(
-            UserFavorite.user_id == user_id,
-            UserFavorite.product_id == product_id
-        )
-    )
-    result = await session.execute(stmt)
-    return result.scalar_one_or_none() is not None
-
-async def get_analytics_dataset(session: AsyncSession, user_id: int, days: int = 30):
-    start_date = date.today() - timedelta(days=days)
-
-    sales_agg = (
+async def fetch_universal_data(
+        session: AsyncSession,
+        user_id: int,
+        q: AnalyticsRequest
+) -> List[Dict[str, Any]]:
+    sales_subq = (
         select(
-            PriceTS.product_id,
-            func.avg(PriceTS.price_sale).label("avg_price"),
+            SalesProxyTS.product_id,
             func.sum(func.coalesce(SalesProxyTS.sales, 0)).label("total_sales"),
-            func.stddev(SalesProxyTS.sales).label("sales_std"),
             func.avg(SalesProxyTS.sales).label("sales_avg"),
-            # Считаем выручку сразу здесь
+            func.stddev(SalesProxyTS.sales).label("sales_std"),
             func.sum(func.coalesce(SalesProxyTS.sales, 0) * PriceTS.price_sale).label("total_revenue")
         )
-        .outerjoin(SalesProxyTS, and_(SalesProxyTS.product_id == PriceTS.product_id, SalesProxyTS.dt == PriceTS.dt))
-        .where(PriceTS.dt >= start_date)
-        .group_by(PriceTS.product_id)
-    ).subquery("sales_agg")
-
-    base_metrics = (
-        select(
-            Product.product_id,
-            Product.subject,
-            sales_agg.c.avg_price,
-            sales_agg.c.total_sales,
-            sales_agg.c.sales_std,
-            sales_agg.c.sales_avg,
-            func.avg(SocialTS.rating).label("avg_rating"),
-            func.max(SocialTS.feedbacks).label("max_feedbacks"),
-            func.avg(DeliveryTS.delivery_days).label("avg_delivery"),
-            sales_agg.c.total_revenue
-        )
-        .join(UserFavorite, UserFavorite.product_id == Product.product_id)
-        .join(sales_agg, Product.product_id == sales_agg.c.product_id) # Джоиним уже посчитанную выручку
-        .outerjoin(SocialTS, and_(Product.product_id == SocialTS.product_id, SocialTS.dt >= start_date))
-        .outerjoin(DeliveryTS, and_(Product.product_id == DeliveryTS.product_id, DeliveryTS.dt >= start_date))
-        .where(UserFavorite.user_id == user_id)
-        .group_by(
-            Product.product_id,
-            Product.subject,
-            sales_agg.c.avg_price,
-            sales_agg.c.total_sales,
-            sales_agg.c.sales_std,
-            sales_agg.c.sales_avg,
-            sales_agg.c.total_revenue
-        )
-    ).subquery("base_metrics")
-
-    final_stmt = select(
-        base_metrics,
-        (base_metrics.c.total_revenue /
-         func.nullif(over(func.sum(base_metrics.c.total_revenue), partition_by=base_metrics.c.subject), 0)).label("category_share"),
-        (over(func.sum(base_metrics.c.total_revenue), order_by=base_metrics.c.total_revenue.desc()) /
-         func.nullif(over(func.sum(base_metrics.c.total_revenue)), 0)).label("cum_share_pct")
-    )
-
-    result = await session.execute(final_stmt)
-    return result.all()
-
-async def get_price_changes(session: AsyncSession, user_id: int):
-    subq = (
-        select(
-            PriceTS.product_id,
-            PriceTS.dt,
-            PriceTS.price_sale.label("current_price"),
-            func.lag(PriceTS.price_sale).over(
-                partition_by=PriceTS.product_id,
-                order_by=PriceTS.dt
-            ).label("previous_price")
-        )
-        .join(UserFavorite, UserFavorite.product_id == PriceTS.product_id)
-        .where(UserFavorite.user_id == user_id)
-    ).subquery()
-
-    stmt = (
-        select(
-            Product.name,
-            subq.c.product_id,
-            subq.c.dt,
-            subq.c.current_price,
-            subq.c.previous_price
-        )
-        .join(Product, Product.product_id == subq.c.product_id)
-        .where(subq.c.previous_price.isnot(None))
-        .where(subq.c.current_price != subq.c.previous_price)
-        .order_by(subq.c.dt.desc())
-    )
-
-    result = await session.execute(stmt)
-    return result.all()
-
-async def get_product_history_raw(session: AsyncSession, product_id: int, days: int = 30):
-    start_date = date.today() - timedelta(days=days)
-    stmt = (
-        select(
-            PriceTS.dt,
-            PriceTS.price_sale,
-            func.coalesce(SalesProxyTS.sales, 0).label("sales")
-        )
-        .outerjoin(SalesProxyTS, and_(
+        .join(PriceTS, and_(
             PriceTS.product_id == SalesProxyTS.product_id,
             PriceTS.dt == SalesProxyTS.dt
         ))
-        .where(PriceTS.product_id == product_id)
-        .where(PriceTS.dt >= start_date)
-        .order_by(PriceTS.dt.asc())
+        .where(SalesProxyTS.dt.between(q.date_from, q.date_to))
+        .group_by(SalesProxyTS.product_id)
+    ).subquery("sales_agg")
+
+    social_subq = (
+        select(
+            SocialTS.product_id,
+            func.avg(SocialTS.rating).label("avg_rating"),
+            func.max(SocialTS.feedbacks).label("max_feedbacks")
+        )
+        .where(SocialTS.dt.between(q.date_from, q.date_to))
+        .group_by(SocialTS.product_id)
+    ).subquery("social_agg")
+
+    delivery_subq = (
+        select(
+            DeliveryTS.product_id,
+            func.avg(DeliveryTS.delivery_days).label("avg_delivery")
+        )
+        .where(DeliveryTS.dt.between(q.date_from, q.date_to))
+        .group_by(DeliveryTS.product_id)
+    ).subquery("delivery_agg")
+
+    dim_map = {
+        "dt": SalesProxyTS.dt,
+        "brand": Product.brand,
+        "subject": Product.subject,
+        "product_id": Product.product_id
+    }
+    dims = [dim_map[d] for d in q.dimensions]
+
+    base_stmt = (
+        select(
+            *dims,
+            func.sum(sales_subq.c.total_sales).label("total_sales"),
+            func.sum(sales_subq.c.total_revenue).label("total_revenue"),
+            func.avg(sales_subq.c.sales_std).label("sales_std"),
+            func.avg(sales_subq.c.sales_avg).label("sales_avg"),
+            func.avg(social_subq.c.avg_rating).label("avg_rating"),
+            func.max(social_subq.c.max_feedbacks).label("max_feedbacks"),
+            func.avg(delivery_subq.c.avg_delivery).label("avg_delivery")
+        )
+        .join(Product, Product.product_id == sales_subq.c.product_id)
+        .join(UserFavorite, and_(
+            UserFavorite.product_id == Product.product_id,
+            UserFavorite.user_id == user_id
+        ))
+        .outerjoin(social_subq, social_subq.c.product_id == Product.product_id)
+        .outerjoin(delivery_subq, delivery_subq.c.product_id == Product.product_id)
     )
-    result = await session.execute(stmt)
-    return result.all()
+
+    if "dt" in q.dimensions:
+        base_stmt = base_stmt.join(SalesProxyTS, and_(
+            SalesProxyTS.product_id == Product.product_id,
+            SalesProxyTS.dt.between(q.date_from, q.date_to)
+        ))
+
+    if q.filters:
+        for key, vals in q.filters.items():
+            if hasattr(Product, key) and vals:
+                base_stmt = base_stmt.where(getattr(Product, key).in_(vals))
+
+    base_stmt = base_stmt.group_by(*dims)
+
+    main_subq = base_stmt.subquery()
+
+    if "product_id" in q.dimensions and "subject" in q.dimensions:
+        partition_by = main_subq.c.subject
+    else:
+        partition_by = None
+
+    final_stmt = select(
+        main_subq,
+        case(
+            (over(func.sum(main_subq.c.total_revenue),
+                  partition_by=partition_by,
+                  order_by=main_subq.c.total_revenue.desc()) /
+             func.nullif(over(func.sum(main_subq.c.total_revenue), partition_by=partition_by), 0) <= 0.8, 'A'),
+            (over(func.sum(main_subq.c.total_revenue),
+                  partition_by=partition_by,
+                  order_by=main_subq.c.total_revenue.desc()) /
+             func.nullif(over(func.sum(main_subq.c.total_revenue), partition_by=partition_by), 0) <= 0.95, 'B'),
+            else_='C'
+        ).label("abc_sql")
+    )
+
+    result = await session.execute(final_stmt)
+    return [dict(row) for row in result.mappings()]
