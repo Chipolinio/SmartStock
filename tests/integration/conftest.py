@@ -1,9 +1,12 @@
 import pytest
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.pool import NullPool
-from src.db.models import Base
-from settings import settings
+from httpx import AsyncClient, ASGITransport
 
+from settings import settings
+from src.db.models import Base
+from src.db.database import get_db
+from src.main import app
 
 @pytest.fixture(scope="function")
 async def engine():
@@ -29,3 +32,24 @@ async def db_session(engine):
 
     yield session
     await session.close()
+
+
+@pytest.fixture(scope="function")
+async def client(db_session):
+    """
+    Создает тестовый клиент для API и подменяет зависимость сессии БД.
+    """
+
+    # Переопределяем зависимость get_db, чтобы API использовало тестовую сессию
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    # Используем ASGITransport для вызова приложения напрямую без реальной сети
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+    # Чистим переопределения после теста
+    app.dependency_overrides.clear()
