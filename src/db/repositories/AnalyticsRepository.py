@@ -56,21 +56,20 @@ async def fetch_universal_data(
     base_stmt = (
         select(
             *dims,
-            func.sum(sales_subq.c.total_sales).label("total_sales"),
-            func.sum(sales_subq.c.total_revenue).label("total_revenue"),
+            func.coalesce(func.sum(sales_subq.c.total_sales), 0).label("total_sales"),
+            func.coalesce(func.sum(sales_subq.c.total_revenue), 0).label("total_revenue"),
             func.avg(sales_subq.c.sales_std).label("sales_std"),
             func.avg(sales_subq.c.sales_avg).label("sales_avg"),
             func.avg(social_subq.c.avg_rating).label("avg_rating"),
             func.max(social_subq.c.max_feedbacks).label("max_feedbacks"),
             func.avg(delivery_subq.c.avg_delivery).label("avg_delivery")
         )
-        .join(Product, Product.product_id == sales_subq.c.product_id)
-        .join(UserFavorite, and_(
-            UserFavorite.product_id == Product.product_id,
-            UserFavorite.user_id == user_id
-        ))
+        .select_from(UserFavorite)
+        .join(Product, Product.product_id == UserFavorite.product_id)
+        .outerjoin(sales_subq, sales_subq.c.product_id == Product.product_id)
         .outerjoin(social_subq, social_subq.c.product_id == Product.product_id)
         .outerjoin(delivery_subq, delivery_subq.c.product_id == Product.product_id)
+        .where(UserFavorite.user_id == user_id)
     )
 
     if "dt" in q.dimensions:
