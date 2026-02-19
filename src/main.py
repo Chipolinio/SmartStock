@@ -27,8 +27,9 @@ async def run_daily_pipeline():
             data_pack = await scraper.fetch_data(articles)
 
             await SalesService.process_full(data_pack, session)
-
+            await session.flush()
             await fill_daily_dataset(session)
+            await session.commit()
 
             print("✅ Все этапы конвейера завершены успешно")
         except Exception as e:

@@ -12,12 +12,21 @@ async def create_price_record(price_in: PriceTSCreate, session: AsyncSession) ->
     session.add(db_price)
     return db_price
 
+
 async def create_prices_bulk(prices_in: list[PriceTSCreate], session: AsyncSession) -> list[PriceTS]:
     if not prices_in:
         return []
+
     prices_data = [p.model_dump() for p in prices_in]
     stmt = insert(PriceTS).values(prices_data)
-    stmt = stmt.on_conflict_do_nothing(index_elements=['product_id', 'dt']).returning(PriceTS)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=['product_id', 'dt'],
+        set_={
+            "price_sale": stmt.excluded.price_sale,
+            "discount_pct": stmt.excluded.discount_pct
+        }
+    ).returning(PriceTS)
+
     result = await session.execute(stmt)
     return list(result.scalars().all())
 

@@ -79,27 +79,30 @@ async def read_features_history(
     return list(result.scalars().all())
 
 async def get_aggregated_features_data(session: AsyncSession, target_date: date):
-
-    def latest_record(model):
+    def get_latest_id_subquery(model):
         return (
-            select(model)
-            .distinct(model.product_id)
-            .order_by(model.product_id, desc(model.dt))
+            select(
+                model.product_id,
+                func.max(model.id).label("latest_id")
+            )
+            .where(model.dt == target_date)
+            .group_by(model.product_id)
             .subquery()
         )
 
-    p_latest = latest_record(PriceTS)
-    s_latest = latest_record(StockTS)
-    soc_latest = latest_record(SocialTS)
+    p_latest = get_latest_id_subquery(PriceTS)
+    s_latest = get_latest_id_subquery(StockTS)
+    soc_latest = get_latest_id_subquery(SocialTS)
 
-    start_date_14 = target_date - timedelta(days=14)
     sales_agg = (
         select(
             SalesProxyTS.product_id,
-            func.avg(case((SalesProxyTS.dt >= target_date - timedelta(days=7), SalesProxyTS.sales), else_=None)).label("avg_7d"),
-            func.avg(SalesProxyTS.sales).label("avg_14d")
+            func.coalesce(
+                func.avg(case((SalesProxyTS.dt >= target_date - timedelta(days=7), SalesProxyTS.sales), else_=None)),
+                0).label("avg_7d"),
+            func.coalesce(func.avg(SalesProxyTS.sales), 0).label("avg_14d")
         )
-        .where(SalesProxyTS.dt >= start_date_14)
+        .where(SalesProxyTS.dt < target_date)
         .group_by(SalesProxyTS.product_id)
         .subquery()
     )
@@ -107,25 +110,32 @@ async def get_aggregated_features_data(session: AsyncSession, target_date: date)
     stmt = (
         select(
             Product.product_id,
-            p_latest.c.price_sale,
-            p_latest.c.discount_pct,
-            soc_latest.c.rating,
-            soc_latest.c.feedbacks,
-            s_latest.c.quantity,
-            sales_agg.c.avg_7d,
-            sales_agg.c.avg_14d,
+            Product.subject,
+            PriceTS.price_sale,
+            PriceTS.discount_pct,
+            SocialTS.rating,
+            SocialTS.feedbacks,
+            StockTS.quantity,
+            func.coalesce(sales_agg.c.avg_7d, 0).label("avg_7d"),
+            func.coalesce(sales_agg.c.avg_14d, 0).label("avg_14d"),
             func.rank().over(
                 partition_by=Product.subject,
-                order_by=p_latest.c.price_sale
+                order_by=PriceTS.price_sale.asc()
             ).label("price_rank"),
             func.rank().over(
                 partition_by=Product.subject,
-                order_by=desc(soc_latest.c.rating)
+                order_by=SocialTS.rating.desc()
             ).label("rating_rank")
         )
+        .join(s_latest, Product.product_id == s_latest.c.product_id)
+        .join(StockTS, StockTS.id == s_latest.c.latest_id)
+
         .outerjoin(p_latest, Product.product_id == p_latest.c.product_id)
-        .outerjoin(s_latest, Product.product_id == s_latest.c.product_id)
+        .outerjoin(PriceTS, PriceTS.id == p_latest.c.latest_id)
+
         .outerjoin(soc_latest, Product.product_id == soc_latest.c.product_id)
+        .outerjoin(SocialTS, SocialTS.id == soc_latest.c.latest_id)
+
         .outerjoin(sales_agg, Product.product_id == sales_agg.c.product_id)
     )
 

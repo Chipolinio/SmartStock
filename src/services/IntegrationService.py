@@ -30,8 +30,29 @@ class WBScraper:
 
         for p in raw_data:
             pid = p.get("id")
-            price_info = p.get("sizes", [{}])[0].get("price", {})
-            f_price = (price_info.get("product", 0) // 100) or 0
+            sizes = p.get("sizes", [])
+            if not sizes:
+                continue
+
+            price_info = sizes[0].get("price", {})
+            if not price_info:
+                continue
+
+            raw_product = price_info.get("product", 0)
+            raw_basic = price_info.get("basic", 0)
+            f_price = float(raw_product / 100)
+
+            discount = price_info.get("sale")
+            if discount is None:
+                if raw_basic > raw_product and raw_basic > 0:
+                    discount = int(((raw_basic - raw_product) / raw_basic) * 100)
+                else:
+                    discount = 0
+            else:
+                discount = int(discount)
+
+            if pid == 248992051:
+                print(f"!!! DEBUG ID {pid}: basic={raw_basic}, prod={raw_product}, calc_discount={discount}")
 
             if f_price <= 0 or f_price > 500000:
                 continue
@@ -39,13 +60,12 @@ class WBScraper:
             clean_name = clean_for_pydantic(p.get("name", ""), default=f"Product {pid}")
             clean_brand = clean_for_pydantic(p.get("brand", ""), default="Generic")
             raw_entity = p.get("entity", "General")
-            clean_subject = clean_for_pydantic(raw_entity, default="General")
 
             payload["products_update"].append({
                 "product_id": pid,
                 "name": clean_name[:200],
                 "brand": clean_brand[:50],
-                "subject": clean_subject,
+                "subject": clean_for_pydantic(raw_entity, default="General"),
                 "entity": raw_entity
             })
 
@@ -54,7 +74,12 @@ class WBScraper:
             delivery_days = max(1, (t1 + t2) // 24)
 
             payload["stocks"].append({"product_id": pid, "dt": today, "quantity": total_qty})
-            payload["prices"].append({"product_id": pid, "dt": today, "price_sale": f_price, "discount_pct": 0})
+            payload["prices"].append({
+                "product_id": pid,
+                "dt": today,
+                "price_sale": f_price,
+                "discount_pct": float(discount)
+            })
             payload["deliveries"].append({"product_id": pid, "dt": today, "delivery_days": delivery_days})
             payload["socials"].append({
                 "product_id": pid,
