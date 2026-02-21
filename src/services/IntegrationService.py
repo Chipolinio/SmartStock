@@ -34,6 +34,14 @@ class WBScraper:
             if not sizes:
                 continue
 
+            current_product_qty = 0
+            for size in sizes:
+                stocks = size.get("stocks", [])
+                if isinstance(stocks, list):
+                    for wh in stocks:
+                        # Суммируем остатки со всех складов для текущего артикула
+                        current_product_qty += wh.get("qty", 0)
+
             price_info = sizes[0].get("price", {})
             if not price_info:
                 continue
@@ -69,11 +77,14 @@ class WBScraper:
                 "entity": raw_entity
             })
 
-            total_qty = sum(wh.get("qty", 0) for size in p.get("sizes", []) for wh in size.get("stocks", []))
             t1, t2 = p.get("time1", 0), p.get("time2", 0)
             delivery_days = max(1, (t1 + t2) // 24)
 
-            payload["stocks"].append({"product_id": pid, "dt": today, "quantity": total_qty})
+            payload["stocks"].append({
+                "product_id": pid,
+                "dt": today,
+                "quantity": current_product_qty
+            })
             payload["prices"].append({
                 "product_id": pid,
                 "dt": today,

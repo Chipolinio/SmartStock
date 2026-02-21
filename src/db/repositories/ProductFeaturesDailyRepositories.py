@@ -141,3 +141,8 @@ async def get_aggregated_features_data(session: AsyncSession, target_date: date)
 
     result = await session.execute(stmt)
     return result.all()
+
+async def get_all_features_for_train(session: AsyncSession) -> Sequence[ProductFeaturesDaily]:
+    stmt = select(ProductFeaturesDaily).order_by(ProductFeaturesDaily.dt.asc())
+    result = await session.execute(stmt)
+    return result.scalars().all()

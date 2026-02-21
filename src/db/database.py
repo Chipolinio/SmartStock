@@ -7,8 +7,6 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# ВРЕМЕННО добавим принудительный вывод в консоль
-print(f"DEBUG: Current DATABASE_URL is: {DATABASE_URL}")
 
 if not DATABASE_URL or not DATABASE_URL.startswith("postgresql+asyncpg"):
     print("DEBUG: URL is wrong or not found, fixing it manually...")
