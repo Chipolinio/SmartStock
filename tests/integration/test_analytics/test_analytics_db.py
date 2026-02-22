@@ -1,32 +1,36 @@
 import pytest
-from sqlalchemy import text
+from datetime import date
+from src.db.models import User, Product, UserFavorite, SalesProxyTS, PriceTS
 from src.db.repositories.AnalyticsRepository import fetch_universal_data
 from src.db.schemas.Analytics import AnalyticsRequest
 
 
 @pytest.mark.asyncio
 async def test_fetch_universal_data_abc_logic(db_session):
-    await db_session.execute(text("""
-        INSERT INTO users (id, user_id, email, password_hash, role, is_pro, is_active)
-        VALUES (1, 12345, 'test@example.com', 'fake_hash', 'user', FALSE, TRUE)
-    """))
-    await db_session.execute(text("""
-        INSERT INTO products (id, product_id, name, brand, subject, entity) VALUES
-        (1, 10, 'Rich Item', 'BrandA', 'Coffee', 'item_entity'),
-        (2, 20, 'Poor Item', 'BrandA', 'Coffee', 'item_entity')
-    """))
-    await db_session.execute(text("""
-        INSERT INTO user_favorites (id, user_id, product_id)
-        VALUES (1, 12345, 10), (2, 12345, 20)
-    """))
-    await db_session.execute(text("""
-        INSERT INTO sales_proxy_ts (id, product_id, dt, sales, confidence) VALUES
-        (1, 10, '2026-01-01', 9, 1.0), (2, 20, '2026-01-01', 1, 1.0)
-    """))
-    await db_session.execute(text("""
-        INSERT INTO price_ts (id, product_id, dt, price_sale, discount_pct) VALUES
-        (1, 10, '2026-01-01', 1000, 0.0), (2, 20, '2026-01-01', 1000, 0.0)
-    """))
+    # Создаем пользователя
+    db_session.add(User(id=1, user_id=12345, email='test@example.com', password_hash='fake_hash', role='user'))
+
+    # Создаем продукты
+    db_session.add_all([
+        Product(id=1, product_id=10, name='Rich Item', brand='BrandA', subject='Coffee', entity='item_entity'),
+        Product(id=2, product_id=20, name='Poor Item', brand='BrandA', subject='Coffee', entity='item_entity')
+    ])
+
+    # Избранное
+    db_session.add_all([
+        UserFavorite(id=1, user_id=12345, product_id=10),
+        UserFavorite(id=2, user_id=12345, product_id=20)
+    ])
+
+    # Продажи и цены
+    dt = date(2026, 1, 1)
+    db_session.add_all([
+        SalesProxyTS(id=1, product_id=10, dt=dt, sales=9, confidence=1.0),
+        SalesProxyTS(id=2, product_id=20, dt=dt, sales=1, confidence=1.0),
+        PriceTS(id=1, product_id=10, dt=dt, price_sale=1000.0, discount_pct=0.0),
+        PriceTS(id=2, product_id=20, dt=dt, price_sale=1000.0, discount_pct=0.0)
+    ])
+
     await db_session.flush()
 
     query = AnalyticsRequest(
@@ -42,15 +46,9 @@ async def test_fetch_universal_data_abc_logic(db_session):
 @pytest.mark.asyncio
 async def test_analytics_edge_no_sales_item(db_session):
     uid = 54321
-    await db_session.execute(text(f"""
-        INSERT INTO users (id, user_id, email, password_hash, role, is_pro, is_active)
-        VALUES (2, {uid}, 'no-sales@test.com', 'hash', 'user', FALSE, TRUE)
-    """))
-    await db_session.execute(text("""
-        INSERT INTO products (id, product_id, name, brand, subject, entity) 
-        VALUES (3, 30, 'Ghost Item', 'BrandB', 'Tea', 'item_entity')
-    """))
-    await db_session.execute(text(f"INSERT INTO user_favorites (id, user_id, product_id) VALUES (3, {uid}, 30)"))
+    db_session.add(User(id=2, user_id=uid, email='no-sales@test.com', password_hash='hash', role='user'))
+    db_session.add(Product(id=3, product_id=30, name='Ghost Item', brand='BrandB', subject='Tea', entity='item_entity'))
+    db_session.add(UserFavorite(id=3, user_id=uid, product_id=30))
 
     await db_session.flush()
 
@@ -70,20 +68,13 @@ async def test_analytics_edge_no_sales_item(db_session):
 @pytest.mark.asyncio
 async def test_analytics_edge_zero_price_division(db_session):
     uid = 999
-    await db_session.execute(text(f"""
-        INSERT INTO users (id, user_id, email, password_hash, role, is_pro, is_active)
-        VALUES (4, {uid}, 'zero@test.com', 'hash', 'user', FALSE, TRUE)
-    """))
-    await db_session.execute(text("""
-        INSERT INTO products (id, product_id, name, brand, subject, entity) 
-        VALUES (4, 40, 'Free Item', 'BrandC', 'Gift', 'item_entity')
-    """))
-    await db_session.execute(text(f"INSERT INTO user_favorites (id, user_id, product_id) VALUES (4, {uid}, 40)"))
+    db_session.add(User(id=4, user_id=uid, email='zero@test.com', password_hash='hash', role='user'))
+    db_session.add(Product(id=4, product_id=40, name='Free Item', brand='BrandC', subject='Gift', entity='item_entity'))
+    db_session.add(UserFavorite(id=4, user_id=uid, product_id=40))
 
-    await db_session.execute(text(
-        "INSERT INTO sales_proxy_ts (id, product_id, dt, sales, confidence) VALUES (4, 40, '2026-01-01', 10, 1.0)"))
-    await db_session.execute(text(
-        "INSERT INTO price_ts (id, product_id, dt, price_sale, discount_pct) VALUES (4, 40, '2026-01-01', 0, 0.0)"))
+    dt = date(2026, 1, 1)
+    db_session.add(SalesProxyTS(id=4, product_id=40, dt=dt, sales=10, confidence=1.0))
+    db_session.add(PriceTS(id=4, product_id=40, dt=dt, price_sale=0.0, discount_pct=0.0))
 
     await db_session.flush()
 
@@ -98,29 +89,17 @@ async def test_analytics_edge_zero_price_division(db_session):
 @pytest.mark.asyncio
 async def test_analytics_edge_date_overlap(db_session):
     uid = 777
-    await db_session.execute(text(f"""
-        INSERT INTO users (id, user_id, email, password_hash, role, is_pro, is_active)
-        VALUES (5, {uid}, 'date@test.com', 'hash', 'user', FALSE, TRUE)
-    """))
+    db_session.add(User(id=5, user_id=uid, email='date@test.com', password_hash='hash', role='user'))
+    db_session.add(Product(id=5, product_id=50, name='Daily Item', brand='BrandD', subject='Tea', entity='item_entity'))
+    db_session.add(UserFavorite(id=5, user_id=uid, product_id=50))
 
-    await db_session.execute(text("""
-        INSERT INTO products (id, product_id, name, brand, subject, entity) 
-        VALUES (5, 50, 'Daily Item', 'BrandD', 'Tea', 'item_entity')
-    """))
-
-    await db_session.execute(text(f"INSERT INTO user_favorites (id, user_id, product_id) VALUES (5, {uid}, 50)"))
-
-    await db_session.execute(text("""
-        INSERT INTO sales_proxy_ts (id, product_id, dt, sales, confidence) VALUES 
-        (5, 50, '2025-12-31', 5, 1.0), 
-        (6, 50, '2026-01-01', 5, 1.0)
-    """))
-
-    await db_session.execute(text("""
-        INSERT INTO price_ts (id, product_id, dt, price_sale, discount_pct) VALUES 
-        (5, 50, '2025-12-31', 100, 0.0), 
-        (6, 50, '2026-01-01', 100, 0.0)
-    """))
+    d1, d2 = date(2025, 12, 31), date(2026, 1, 1)
+    db_session.add_all([
+        SalesProxyTS(id=5, product_id=50, dt=d1, sales=5, confidence=1.0),
+        SalesProxyTS(id=6, product_id=50, dt=d2, sales=5, confidence=1.0),
+        PriceTS(id=5, product_id=50, dt=d1, price_sale=100.0, discount_pct=0.0),
+        PriceTS(id=6, product_id=50, dt=d2, price_sale=100.0, discount_pct=0.0)
+    ])
 
     await db_session.flush()
 
