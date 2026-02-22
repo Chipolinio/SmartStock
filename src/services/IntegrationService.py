@@ -58,10 +58,6 @@ class WBScraper:
                     discount = 0
             else:
                 discount = int(discount)
-
-            if pid == 248992051:
-                print(f"!!! DEBUG ID {pid}: basic={raw_basic}, prod={raw_product}, calc_discount={discount}")
-
             if f_price <= 0 or f_price > 500000:
                 continue
 

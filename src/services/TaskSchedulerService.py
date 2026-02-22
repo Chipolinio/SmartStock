@@ -32,7 +32,6 @@ class TaskSchedulerService:
                 await session.flush()
                 await fill_daily_dataset(session)
                 await session.flush()
-
                 await self.ml_service.run_daily_forecast(session, date.today())
 
                 await session.commit()
