@@ -1,5 +1,6 @@
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import update
 
 from src.db.models import User
 from src.db.schemas.User import UserCreate, UserUpdate
@@ -59,6 +60,15 @@ async def update_user(
     await session.refresh(db_user)
     return db_user
 
+async def update_user_tg_id(email: str, tg_id: int, session: AsyncSession) -> bool:
+    stmt = (
+        update(User)
+        .where(User.email == email)
+        .values(user_id=tg_id)
+    )
+    result = await session.execute(stmt)
+    await session.commit()
+    return result.rowcount > 0
 
 async def delete_user(
         user_id: int,

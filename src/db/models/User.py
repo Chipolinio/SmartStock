@@ -7,7 +7,7 @@ from src.db.models.Base import Base
 
 class User(Base):
     __tablename__ = "users"
-    user_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=True)
     email: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, nullable=False)

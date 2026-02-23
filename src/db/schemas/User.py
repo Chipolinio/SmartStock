@@ -16,11 +16,11 @@ class UserRole(str, Enum):
 
 class UserBase(BaseModel):
     user_id: Annotated[int, Field(
-        ...,
+        default=None,
         gt=0,
         description="Внешний ID (например, Telegram ID)",
         examples=[555666777]
-    )]
+    )] = None
     email: Annotated[EmailStr, Field(
         ...,
         min_length=5,

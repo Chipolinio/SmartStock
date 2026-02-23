@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     JWT_PUBLIC_KEY: Path = PROJECT_ROOT / "certs" / "public.pem"
     ALGORITHM: str = "RS256"
 
+    BOT_TOKEN: str
+
     @property
     def DATABASE_URL(self) -> str:
         return (f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"

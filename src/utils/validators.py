@@ -38,3 +38,10 @@ def validate_email_strict(v: str) -> str:
     if not re.match(email_regex, v):
         raise ValueError("Invalid email address")
     return v
+
+
+def extract_article(text: str) -> int | None:
+    if "@" in text:
+        return None
+    match = re.search(r'(\d{5,12})', text)
+    return int(match.group(1)) if match else None
