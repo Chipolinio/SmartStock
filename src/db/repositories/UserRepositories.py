@@ -1,79 +1,51 @@
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import update
-
 from src.db.models import User
-from src.db.schemas.User import UserCreate, UserUpdate
+from src.db.schemas.User import UserCreate
 from src.utils.security import get_password_hash
 
-async def create_user(
-        user_in: UserCreate,
-        session: AsyncSession
-) -> User:
+async def create_user(user_in: UserCreate, session: AsyncSession) -> User:
     data = user_in.model_dump()
-
     plain_password = data.pop("password")
     data["password_hash"] = get_password_hash(plain_password)
-
     db_user = User(**data)
     session.add(db_user)
     await session.commit()
     await session.refresh(db_user)
     return db_user
 
-
-async def read_user_by_id(
-        user_id: int,
-        session: AsyncSession
-) -> User | None:
-    stmt = (
-        select(User).where(User.user_id == user_id)
-    )
+async def read_user_by_internal_id(internal_id: int, session: AsyncSession) -> User | None:
+    stmt = select(User).where(User.id == internal_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
+async def read_user_by_id(tg_id: int, session: AsyncSession) -> User | None:
+    stmt = select(User).where(User.user_id == tg_id)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
 
-async def read_user_by_email(
-    email: str,
-    session: AsyncSession
-) -> User | None:
+async def read_user_by_email(email: str, session: AsyncSession) -> User | None:
     stmt = select(User).where(User.email == email)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
+async def update_user_tg_id(email: str, tg_id: int, session: AsyncSession) -> bool:
+    clear_stmt = update(User).where(User.user_id == tg_id).values(user_id=None)
+    await session.execute(clear_stmt)
 
-async def update_user(
-        user_id: int,
-        user_update: UserUpdate,
-        session: AsyncSession
-):
-    db_user = await read_user_by_id(user_id, session)
+    stmt = select(User).where(User.email == email)
+    result = await session.execute(stmt)
+    db_user = result.scalar_one_or_none()
+
     if not db_user:
-        return None
+        return False
 
-    update_data = user_update.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_user, key, value)
-
-    session.add(db_user)
+    db_user.user_id = int(tg_id)
     await session.commit()
     await session.refresh(db_user)
-    return db_user
+    return True
 
-async def update_user_tg_id(email: str, tg_id: int, session: AsyncSession) -> bool:
-    stmt = (
-        update(User)
-        .where(User.email == email)
-        .values(user_id=tg_id)
-    )
-    result = await session.execute(stmt)
-    await session.commit()
-    return result.rowcount > 0
-
-async def delete_user(
-        user_id: int,
-        session: AsyncSession
-):
+async def delete_user(user_id: int, session: AsyncSession):
     stmt = delete(User).where(User.user_id == user_id)
     await session.execute(stmt)
     await session.commit()

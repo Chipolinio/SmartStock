@@ -25,13 +25,13 @@ async def test_run_daily_forecast_success(mocker):
     ]
 
     mocker.patch(
-        "src.services.MLService.get_aggregated_features_data",
+        "src.states.MLService.get_aggregated_features_data",
         new_callable=AsyncMock,
         return_value=mock_raw
     )
 
     mock_save = mocker.patch(
-        "src.services.MLService.create_predict_sales_bulk",
+        "src.states.MLService.create_predict_sales_bulk",
         new_callable=AsyncMock
     )
 
@@ -51,7 +51,7 @@ async def test_run_daily_forecast_success(mocker):
 @pytest.mark.asyncio
 async def test_run_model_training_no_data(mocker):
     mocker.patch(
-        "src.services.MLService.get_all_features_for_train",
+        "src.states.MLService.get_all_features_for_train",
         new_callable=AsyncMock,
         return_value=[]
     )

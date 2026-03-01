@@ -2,8 +2,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import date
 from src.db.database import AsyncSessionLocal
 
-from src.ml.engine import SalesMLProvider
-from src.services.MLService import MLForecastService
+from src.services.MLService import run_daily_forecast, run_model_training
 from src.services.IntegrationService import WBScraper
 from src.services import ProductService, SalesService
 from src.services.DatabaseService import fill_daily_dataset
@@ -11,8 +10,6 @@ from src.services.DatabaseService import fill_daily_dataset
 
 class TaskSchedulerService:
     def __init__(self):
-        self.ml_provider = SalesMLProvider()
-        self.ml_service = MLForecastService(self.ml_provider)
         self.scheduler = AsyncIOScheduler()
 
     async def run_daily_pipeline(self):
@@ -32,7 +29,8 @@ class TaskSchedulerService:
                 await session.flush()
                 await fill_daily_dataset(session)
                 await session.flush()
-                await self.ml_service.run_daily_forecast(session, date.today())
+
+                await run_daily_forecast(session, date.today())
 
                 await session.commit()
                 print("✅ Пайплайн завершен успешно")
@@ -44,7 +42,7 @@ class TaskSchedulerService:
         print("🧠 Старт обучения модели...")
         async with AsyncSessionLocal() as session:
             try:
-                success = await self.ml_service.run_model_training(session)
+                success = await run_model_training(session)
                 if success:
                     await session.commit()
                     print("✅ Модель переобучена")

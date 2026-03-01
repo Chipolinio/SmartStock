@@ -10,83 +10,69 @@ from src.db.schemas.Product import ProductResponse
 
 logger = logging.getLogger(__name__)
 
-
-async def get_user(user_id: int, session: AsyncSession):
-    user = await UserRepo.read_user_by_id(user_id, session)
+async def _get_db_user_by_internal_id(internal_id: int, session: AsyncSession):
+    user = await UserRepo.read_user_by_internal_id(internal_id, session)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Пользователь с ID {user_id} не найден."
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
     return user
 
-async def link_tg_id_to_user(email: str, tg_id: int, session: AsyncSession):
-
-    existing_user = await UserRepo.read_user_by_id(tg_id, session)
-    if existing_user:
-        raise HTTPException(status_code=409, detail="Этот Telegram ID уже занят")
-
-    success = await UserRepo.update_user_tg_id(email, tg_id, session)
+async def link_user_telegram(internal_id: int, tg_id: int, session: AsyncSession):
+    user = await _get_db_user_by_internal_id(internal_id, session)
+    success = await UserRepo.update_user_tg_id(user.email, tg_id, session)
     if not success:
-        raise HTTPException(status_code=404, detail="Пользователь с таким email не найден")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Ошибка обновления БД")
+    await session.commit()
+    return {"status": "success", "message": "Telegram привязан"}
 
-    return {"status": "success", "message": f"ID {tg_id} привязан к {email}"}
+async def read_user_favorites(internal_id: int, session: AsyncSession) -> List[ProductResponse]:
+    user = await _get_db_user_by_internal_id(internal_id, session)
+    if not user.user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Telegram не привязан")
 
+    products = await FavRepo.read_user_favorites(user_id=user.user_id, session=session)
+    return [ProductResponse.model_validate(p) for p in products]
 
-async def create_user_favorites(
-        favorite_in: UserFavoriteCreate,
-        session: AsyncSession
-) -> UserFavoriteResponse:
-    await get_user(favorite_in.user_id, session)
+async def create_user_favorites(internal_id: int, product_id: int, session: AsyncSession):
+    user = await _get_db_user_by_internal_id(internal_id, session)
+    if not user.user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Сначала привяжите Telegram")
 
-    product_exists = await FavRepo.check_product_exists(
-        product_id=favorite_in.product_id,
-        session=session
-    )
-    if not product_exists:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Товар {favorite_in.product_id} не найден в системе."
-        )
+    favorite_in = UserFavoriteCreate(user_id=user.user_id, product_id=product_id)
 
-    favorite_from_db = await FavRepo.create_user_favorites(
-        fav_in=favorite_in,
-        session=session
-    )
+    if not await FavRepo.check_product_exists(product_id, session):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Товар не найден")
 
-    if favorite_from_db is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Этот товар уже находится в вашем списке избранного"
-        )
+    res = await FavRepo.create_user_favorites(favorite_in, session)
+    if not res:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Уже в избранном")
 
     await session.commit()
-    return UserFavoriteResponse.model_validate(favorite_from_db)
+    return UserFavoriteResponse.model_validate(res)
 
 
-async def read_user_favorites(
-        user_id: int,
-        session: AsyncSession
-) -> List[ProductResponse]:
-    await get_user(user_id, session)
+async def create_batch_favorites(internal_id: int, product_ids: List[int], session: AsyncSession):
+    user = await _get_db_user_by_internal_id(internal_id, session)
 
-    products_models = await FavRepo.read_user_favorites(
-        user_id=user_id,
+    if not user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Сначала привяжите Telegram в личном кабинете."
+        )
+
+    await FavRepo.create_batch_favorites(
+        user_id=user.user_id,
+        product_ids=product_ids,
         session=session
     )
-    return [ProductResponse.model_validate(p) for p in products_models]
 
+    await session.commit()
 
-async def delete_user_favorites(
-        user_id: int,
-        product_id: int,
-        session: AsyncSession
-):
-    await get_user(user_id, session)
+    return {"status": "success", "message": f"Добавлено товаров: {len(product_ids)}"}
 
-    await FavRepo.delete_user_favorites(
-        user_id=user_id,
-        product_id=product_id,
-        session=session
-    )
-    return {"detail": "Товар удален из избранного"}
+async def delete_user_favorites(internal_id: int, product_id: int, session: AsyncSession):
+    user = await _get_db_user_by_internal_id(internal_id, session)
+    if not user.user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Telegram не привязан")
+
+    await FavRepo.delete_user_favorites(user_id=user.user_id, product_id=product_id, session=session)
+    await session.commit()

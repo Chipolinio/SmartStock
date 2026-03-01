@@ -25,10 +25,8 @@ async def registration(
 ):
     logger.debug("registration: user_id=%s", user_data.user_id)
 
-    # Хешируем пароль через твой security.py [cite: 1]
     hashed_password = get_password_hash(user_data.password)
 
-    # Подготовка данных модели User
     user_dict = user_data.model_dump()
     user_dict.pop("password")
     new_user = User(**user_dict, password_hash=hashed_password)
@@ -103,12 +101,12 @@ async def login(
         raise _login_401()
 
     data = {
-        "sub": str(user.user_id),
+        "sub": str(user.id),
         "role": user.role,
         "is_pro": user.is_pro,
         "is_active": user.is_active,
     }
-    refresh_data = {"sub": str(user.user_id)}
+    refresh_data = {"sub": str(user.id)}
 
     token = create_token(data)
     refresh_token = create_token(refresh_data, duration=60 * 60 * 24 * 30)
