@@ -58,7 +58,7 @@ async def test_aggregate_unauthorized(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-@patch("src.states.AnalyticsService.run_unified_analytics")
+@patch("src.services.AnalyticsService.run_unified_analytics")
 async def test_aggregate_server_error_handling(mock_service, client: AsyncClient, mock_user_auth):
     mock_service.side_effect = Exception("Database is down")
     client.cookies.set("access_token", "valid-token")
@@ -70,7 +70,6 @@ async def test_aggregate_server_error_handling(mock_service, client: AsyncClient
         "metrics": ["revenue"]
     }
 
-    # Ожидаем, что вызов приведет к Exception, так как middleware в тестах может не успеть перехватить его
     with pytest.raises(Exception) as excinfo:
         await client.post("/analytics/aggregate", json=payload)
 

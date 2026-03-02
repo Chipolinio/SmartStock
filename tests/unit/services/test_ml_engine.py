@@ -1,6 +1,5 @@
-import pytest
 import numpy as np
-from src.ml.engine import SalesMLProvider
+from src.ml.engine import predict_sales_and_oos
 
 class MockRow:
     def __init__(self, **kwargs):
@@ -8,12 +7,8 @@ class MockRow:
     def _asdict(self):
         return self.__dict__
 
-@pytest.fixture
-def provider():
-    return SalesMLProvider()
-
-def test_provider_mapping_and_calculation(provider, mocker):
-    mocker.patch.object(provider.engine, 'predict', return_value=np.array([5.0]))
+def test_provider_mapping_and_calculation(mocker):
+    mocker.patch("src.ml.engine._engine.predict", return_value=np.array([5.0]))
 
     raw_rows = [
         MockRow(
@@ -22,13 +17,13 @@ def test_provider_mapping_and_calculation(provider, mocker):
         )
     ]
 
-    df_result = provider.predict_sales_and_oos(raw_rows)
+    df_result = predict_sales_and_oos(raw_rows)
 
     assert 'price' in df_result.columns
     assert 'stock_left' in df_result.columns
     assert df_result.iloc[0]['days_to_oos'] == 2.0
     assert df_result.iloc[0]['predicted_sales'] == 5.0
 
-def test_provider_empty_input(provider):
-    df_result = provider.predict_sales_and_oos([])
+def test_provider_empty_input():
+    df_result = predict_sales_and_oos([])
     assert df_result.empty

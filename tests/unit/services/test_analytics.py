@@ -26,7 +26,7 @@ async def test_run_unified_analytics_edge_cases(mocker):
     ]
 
     mocker.patch(
-        "src.states.AnalyticsService.fetch_universal_data",
+        "src.services.AnalyticsService.fetch_universal_data",
         new_callable=AsyncMock,
         return_value=mock_raw_rows
     )
@@ -50,7 +50,7 @@ async def test_run_unified_analytics_partial_metrics(mocker):
     mock_raw_rows = [{"product_id": 1, "total_revenue": 500.0}]
 
     mocker.patch(
-        "src.states.AnalyticsService.fetch_universal_data",
+        "src.services.AnalyticsService.fetch_universal_data",
         new_callable=AsyncMock,
         return_value=mock_raw_rows
     )
@@ -89,7 +89,7 @@ async def test_run_unified_analytics_success(mocker):
     ]
 
     mock_fetch = mocker.patch(
-        "src.states.AnalyticsService.fetch_universal_data",
+        "src.services.AnalyticsService.fetch_universal_data",
         new_callable=AsyncMock,
         return_value=mock_raw_rows
     )
@@ -114,7 +114,7 @@ async def test_run_unified_analytics_success(mocker):
 @pytest.mark.asyncio
 async def test_run_unified_analytics_error(mocker):
     mocker.patch(
-        "src.states.AnalyticsService.fetch_universal_data",
+        "src.services.AnalyticsService.fetch_universal_data",
         side_effect=Exception("DB connection lost")
     )
 

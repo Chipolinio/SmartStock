@@ -2,17 +2,13 @@ import pytest
 import numpy as np
 from unittest.mock import AsyncMock
 from datetime import date
-from src.services.MLService import MLForecastService
-from src.ml.engine import SalesMLProvider
-
+from src.services.MLService import run_daily_forecast, run_model_training
 
 class MockRow:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
-
     def _asdict(self):
         return self.__dict__
-
 
 @pytest.mark.asyncio
 async def test_run_daily_forecast_success(mocker):
@@ -25,37 +21,32 @@ async def test_run_daily_forecast_success(mocker):
     ]
 
     mocker.patch(
-        "src.states.MLService.get_aggregated_features_data",
+        "src.services.MLService.get_aggregated_features_data",
         new_callable=AsyncMock,
         return_value=mock_raw
     )
 
     mock_save = mocker.patch(
-        "src.states.MLService.create_predict_sales_bulk",
+        "src.services.MLService.create_predict_sales_bulk",
         new_callable=AsyncMock
     )
 
-    provider = SalesMLProvider()
-    mocker.patch.object(provider.engine, 'predict', return_value=np.array([5.0]))
+    mocker.patch("src.ml.engine._engine.predict", return_value=np.array([5.0]))
 
-    service = MLForecastService(provider)
     session = AsyncMock()
-
-    await service.run_daily_forecast(session, date.today())
+    await run_daily_forecast(session, date.today())
 
     assert mock_save.called
     args, _ = mock_save.call_args
     assert args[0][0].predicted_sales == 5.0
 
-
 @pytest.mark.asyncio
 async def test_run_model_training_no_data(mocker):
     mocker.patch(
-        "src.states.MLService.get_all_features_for_train",
+        "src.services.MLService.get_all_features_for_train",
         new_callable=AsyncMock,
         return_value=[]
     )
 
-    service = MLForecastService(SalesMLProvider())
-    result = await service.run_model_training(AsyncMock())
+    result = await run_model_training(AsyncMock())
     assert result is False

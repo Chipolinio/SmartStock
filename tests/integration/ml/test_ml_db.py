@@ -6,8 +6,8 @@ from src.db.models import (
     Product, PriceTS, StockTS, SocialTS,
     SalesProxyTS, ProductFeaturesDaily, PredictedSalesTS
 )
-from src.ml.engine import SalesMLProvider
-from src.services.MLService import MLForecastService
+from src.ml.engine import predict_sales_and_oos
+from src.services.MLService import run_daily_forecast, run_model_training
 from src.db.repositories.ProductFeaturesDailyRepositories import get_aggregated_features_data
 
 
@@ -40,11 +40,9 @@ async def test_run_daily_forecast_integration(db_session, mocker):
     db_session.add(PriceTS(product_id=202, dt=target_date, price_sale=100.0, discount_pct=0.0))
     await db_session.flush()
 
-    provider = SalesMLProvider()
-    mocker.patch.object(provider.engine, 'predict', return_value=np.array([12.5]))
-    service = MLForecastService(provider)
+    mocker.patch("src.ml.engine._engine.predict", return_value=np.array([12.5]))
 
-    await service.run_daily_forecast(db_session, target_date)
+    await run_daily_forecast(db_session, target_date)
 
     stmt = select(PredictedSalesTS).where(PredictedSalesTS.product_id == 202)
     result = await db_session.execute(stmt)
@@ -73,11 +71,9 @@ async def test_run_model_training_db_loading(db_session, mocker):
     ))
     await db_session.flush()
 
-    provider = SalesMLProvider()
-    mock_train = mocker.patch.object(provider.engine, 'train', return_value=True)
-    service = MLForecastService(provider)
+    mock_train = mocker.patch("src.ml.engine._engine.train", return_value=True)
 
-    success = await service.run_model_training(db_session)
+    success = await run_model_training(db_session)
 
     assert success is True
     assert mock_train.called
@@ -93,13 +89,10 @@ async def test_run_daily_forecast_idempotency(db_session, mocker):
     db_session.add(PriceTS(product_id=pid, dt=target_date, price_sale=100.0, discount_pct=0.0))
     await db_session.flush()
 
-    provider = SalesMLProvider()
-    mocker.patch.object(provider.engine, 'predict', return_value=[10.0])
-    service = MLForecastService(provider)
+    mocker.patch("src.ml.engine._engine.predict", return_value=np.array([10.0]))
 
-    await service.run_daily_forecast(db_session, target_date)
-
-    await service.run_daily_forecast(db_session, target_date)
+    await run_daily_forecast(db_session, target_date)
+    await run_daily_forecast(db_session, target_date)
 
     stmt = select(PredictedSalesTS).where(PredictedSalesTS.product_id == pid, PredictedSalesTS.dt == target_date)
     result = await db_session.execute(stmt)
@@ -108,9 +101,7 @@ async def test_run_daily_forecast_idempotency(db_session, mocker):
     assert len(predictions) == 1
 
 
-def test_days_to_oos_calculation_logic():
-    provider = SalesMLProvider()
-
+def test_days_to_oos_calculation_logic(mocker):
     test_data = [
         {'product_id': 1, 'stock_left': 100, 'predicted_sales': 10.0},
         {'product_id': 2, 'stock_left': 50,  'predicted_sales': 0.0},
@@ -122,13 +113,17 @@ def test_days_to_oos_calculation_logic():
         def __init__(self, data):
             self.d = data
         def _asdict(self):
-            return self.d
+            return {
+                'product_id': self.d['product_id'],
+                'quantity': self.d['stock_left'],
+                'price_sale': 100.0 # Дефолт для теста
+            }
 
     rows = [Row(d) for d in test_data]
 
-    provider.engine.predict = lambda df: df['predicted_sales'].values
+    mocker.patch("src.ml.engine._engine.predict", return_value=np.array([10.0, 0.0, 5.0, 0.0001]))
 
-    df_result = provider.predict_sales_and_oos(rows)
+    df_result = predict_sales_and_oos(rows)
     results = df_result.set_index('product_id')['days_to_oos'].to_dict()
 
     assert results[1] == 10.0
