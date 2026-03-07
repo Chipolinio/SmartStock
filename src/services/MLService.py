@@ -10,22 +10,43 @@ from src.db.repositories.PredictedSalesTSRepositories import (
     read_predict_sales_history
 )
 from src.db.repositories.ProductFeaturesDailyRepositories import (
-    get_aggregated_features_data,
+    read_features_by_date,
     get_all_features_for_train,
     read_features_latest
 )
 
 
 async def run_daily_forecast(session: AsyncSession, target_date: date):
-    raw_data = await get_aggregated_features_data(session, target_date)
-    if not raw_data:
+    raw_features = await read_features_by_date(session, target_date)
+
+    if not raw_features:
         return None
 
-    df = predict_sales_and_oos(raw_data)
+
+    data_for_ml = []
+    for f in raw_features:
+        data_for_ml.append({
+            "product_id": f.product_id,
+            "price": float(f.price),
+            "discount_pct": float(f.discount_pct or 0),
+            "rating": float(f.rating or 0),
+            "feedbacks": f.feedbacks or 0,
+            "stock_left": f.stock_left,
+            "price_rank_in_category": f.price_rank_in_category
+        })
+
+
+    df = predict_sales_and_oos(data_for_ml)
+
+    if df.empty:
+        return None
+
+    if 'predicted_sales' not in df.columns:
+        return None
 
     predictions = [
         PredictedSalesTSCreate(
-            product_id=row['product_id'],
+            product_id=int(row['product_id']),
             dt=target_date,
             predicted_sales=float(row['predicted_sales']),
             model_version=MODEL_VERSION
@@ -36,6 +57,7 @@ async def run_daily_forecast(session: AsyncSession, target_date: date):
         res = await create_predict_sales_bulk(predictions, session)
         await session.commit()
         return res
+    return None
 
 
 async def run_model_training(session: AsyncSession):
@@ -43,18 +65,20 @@ async def run_model_training(session: AsyncSession):
     if not raw_history:
         return False
 
-    df = pd.DataFrame([
-        {
-            'price': float(r.price),
-            'discount_pct': float(r.discount_pct or 0),
-            'rating': float(r.rating or 0),
-            'feedbacks': r.feedbacks or 0,
-            'stock_left': r.stock_left,
-            'price_rank_in_category': r.price_rank_in_category,
-            'target_sales': float(r.avg_sales_7d or 0)
-        } for r in raw_history
-    ])
+    data_list = []
+    for row in raw_history:
+        f = row.ProductFeaturesDaily
+        data_list.append({
+            'price': float(f.price),
+            'discount_pct': float(f.discount_pct or 0),
+            'rating': float(f.rating or 0),
+            'feedbacks': f.feedbacks or 0,
+            'stock_left': f.stock_left,
+            'price_rank_in_category': f.price_rank_in_category,
+            'target_sales': float(row.real_sales_next_day or 0)
+        })
 
+    df = pd.DataFrame(data_list)
     return train_model(df)
 
 

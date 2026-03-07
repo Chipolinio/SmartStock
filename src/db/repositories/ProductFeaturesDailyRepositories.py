@@ -142,7 +142,35 @@ async def get_aggregated_features_data(session: AsyncSession, target_date: date)
     result = await session.execute(stmt)
     return result.all()
 
-async def get_all_features_for_train(session: AsyncSession) -> Sequence[ProductFeaturesDaily]:
-    stmt = select(ProductFeaturesDaily).order_by(ProductFeaturesDaily.dt.asc())
+async def get_all_features_for_train(session: AsyncSession):
+    stmt = (
+        select(
+            ProductFeaturesDaily,
+            SalesProxyTS.sales.label("real_sales_next_day")
+        )
+        .join(
+            SalesProxyTS,
+            (SalesProxyTS.product_id == ProductFeaturesDaily.product_id) &
+            (SalesProxyTS.dt == ProductFeaturesDaily.dt + timedelta(days=1))
+        )
+    )
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return result.all()
+
+
+async def read_features_by_date(
+        session: AsyncSession,
+        target_date: date
+) -> Sequence[ProductFeaturesDaily]:
+    check_stmt = select(func.count()).select_from(ProductFeaturesDaily)
+    await session.execute(check_stmt)
+
+    date_stmt = select(ProductFeaturesDaily.dt).distinct().limit(5)
+    await session.execute(date_stmt)
+
+    stmt = select(ProductFeaturesDaily).where(ProductFeaturesDaily.dt == target_date)
+
+    result = await session.execute(stmt)
+    features = result.scalars().all()
+
+    return features

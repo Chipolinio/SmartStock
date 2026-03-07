@@ -15,13 +15,22 @@ def predict_sales_and_oos(raw_rows: list) -> pd.DataFrame:
     if not raw_rows:
         return pd.DataFrame()
 
-    df = pd.DataFrame([row._asdict() for row in raw_rows])
-    df = df.rename(columns={
+    processed_data = []
+    for row in raw_rows:
+        if isinstance(row, dict):
+            processed_data.append(row)
+        else:
+            processed_data.append(row._asdict())
+
+    df = pd.DataFrame(processed_data)
+
+    rename_map = {
         'price_sale': 'price',
         'quantity': 'stock_left',
         'price_rank': 'price_rank_in_category',
         'rating_rank': 'rating_rank_in_category'
-    })
+    }
+    df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
 
     for col in _engine.features:
         if col in df.columns:

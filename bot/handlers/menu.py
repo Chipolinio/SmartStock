@@ -5,11 +5,9 @@ from bot.services.AnalyticsBotService import (
     get_favorites_analytics_summary,
     get_favorites_forecasts
 )
-from src.db.repositories import UserRepositories as UserRepo
-from src.db.repositories import UserFavoriteRepositories as FavRepo
+from bot.services.UserBotService import get_user_profile, get_user_favorites
 
 router = Router()
-
 
 @router.message(F.text == "📊 Аналитика")
 async def handle_analytics(message: types.Message, session: AsyncSession):
@@ -58,7 +56,7 @@ async def handle_forecasts(message: types.Message, session: AsyncSession):
 
 @router.message(F.text == "👤 Мой профиль")
 async def handle_profile(message: types.Message, session: AsyncSession):
-    user = await UserRepo.read_user_by_id(message.from_user.id, session)
+    user = await get_user_profile(message.from_user.id, session)
 
     if not user:
         return await message.answer("Профиль не найден. Привяжите ID на сайте.")
@@ -76,7 +74,7 @@ async def favorites(message: types.Message, session: AsyncSession):
     tg_id = message.from_user.id
 
     try:
-        favs = await FavRepo.read_user_favorites(user_id=tg_id, session=session)
+        favs = await get_user_favorites(tg_id, session)
 
         if not favs:
             await message.answer("Твой список избранного пуст. Добавь что-нибудь на сайте!")
