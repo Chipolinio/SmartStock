@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.database import get_db
-from src.services import AnalyticsService
+from src.services import AnalyticsService as AnalyticsServiceModule
 from src.db.schemas.Analytics import AnalyticsResponse, AnalyticsRequest
 from src.utils.dependencies import get_user, is_user_pro
 
@@ -29,7 +29,7 @@ async def get_aggregated_analytics(
     session: AsyncSession = Depends(get_db),
     user_data: dict = Depends(get_user)
 ):
-    data = await AnalyticsService.run_unified_analytics(
+    data = await AnalyticsServiceModule.run_unified_analytics(
         session=session,
         user_id=user_data["user_id"],
         q=query

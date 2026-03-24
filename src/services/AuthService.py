@@ -50,13 +50,14 @@ async def registration(
             detail="Internal server error",
         ) from e
 
+    # Используем внутренний id для JWT (user_id может быть None, если Telegram не привязан)
     data = {
-        "sub": str(new_user.user_id),
+        "sub": str(new_user.id),
         "role": new_user.role,
         "is_pro": new_user.is_pro,
         "is_active": new_user.is_active,
     }
-    refresh_data = {"sub": str(new_user.user_id)}
+    refresh_data = {"sub": str(new_user.id)}
 
     try:
         token = create_token(data)

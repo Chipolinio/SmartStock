@@ -5,7 +5,7 @@ from .BaseTS import BaseTS
 
 class SalesProxyTSBase(BaseTS):
     sales: Annotated[int, Field(..., ge=0, description="Продажи")]
-    confidence: Annotated[float, Field(0, ge=0, le=100)]
+    confidence: Annotated[float, Field(0, ge=0, le=1)]
 
 class SalesProxyTSCreate(SalesProxyTSBase):
     pass

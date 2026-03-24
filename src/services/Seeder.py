@@ -1,42 +1,143 @@
 import json
 import time
 import re
-import httpx
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
-API_BASE_URL = "http://127.0.0.1:8000"
+from sqlalchemy.ext.asyncio import AsyncSession
+from src.db.database import AsyncSessionLocal
+from src.db.schemas.Product import ProductCreate
+from src.db.repositories.ProductRepositories import bulk_upsert_products
 
 
 def clean_text_for_api(text):
+    """Очистка текста от запрещённых символов."""
     if not text:
         return "Unknown"
     cleaned = re.sub(r'[^a-zA-Zа-яА-Я0-9\s\-\.\(\)\&№,\/\+]', '', str(text))
     return cleaned.strip()
 
 
-def seed_to_db(products_data):
+def transform_products(raw_products: list[dict]) -> list[dict]:
+    """
+    Трансформация сырых данных WB в список словарей для ProductCreate.
+    
+    Args:
+        raw_products: Сырые данные из API WB
+        
+    Returns:
+        Список словарей для создания ProductCreate
+    """
+    to_create = []
+    for p in raw_products:
+        name = clean_text_for_api(p.get('name', ''))
+        brand = clean_text_for_api(p.get('brand', ''))
+        
+        # Валидация минимальной длины
+        if len(name) < 2:
+            name = name + " Item"
+        if len(brand) < 1:
+            brand = "Generic"
+        
+        to_create.append({
+            "product_id": int(p.get('id')),
+            "brand": brand[:50],
+            "name": name[:200],
+            "subject": clean_text_for_api(p.get('subjectName', 'General')),
+            "entity": "product"
+        })
+    
+    return to_create
+
+
+async def seed_to_db(products_data: list[dict], session: AsyncSession):
+    """
+    Сохранение товаров в БД напрямую через репозитории.
+    
+    Args:
+        products_data: Список словарей с данными товаров
+        session: Асинхронная сессия БД
+        
+    Returns:
+        Список сохранённых товаров
+    """
     if not products_data:
         print("⚠ Нечего отправлять в базу.")
-        return
-
+        return []
+    
+    # Убираем дубликаты по product_id
     unique_products = {p['product_id']: p for p in products_data}.values()
-    payload = list(unique_products)
-
+    products_list = [ProductCreate(**p) for p in unique_products]
+    
     try:
-        print(f"🚀 Отправка {len(payload)} товаров на {API_BASE_URL}/products/bulk...")
-        with httpx.Client(timeout=20.0) as client:
-            response = client.post(f"{API_BASE_URL}/products/bulk", json=payload)
-
-            if response.status_code in [200, 201]:
-                print(f"✅ Успешно! База пополнена. Ответ: {len(response.json())} объектов.")
-            else:
-                print(f"🛑 Ошибка API {response.status_code}: {response.text}")
+        print(f"🚀 Сохранение {len(products_list)} товаров через репозитории...")
+        
+        saved_products = await bulk_upsert_products(products_list, session)
+        await session.commit()
+        
+        print(f"✅ Успешно! Сохранено: {len(saved_products)} товаров.")
+        return saved_products
+        
     except Exception as e:
-        print(f"❌ Ошибка соединения с API: {e}")
+        await session.rollback()
+        print(f"❌ Ошибка при сохранении: {e}")
+        raise
 
 
-def get_wildberries_and_seed(query="наушники"):
+async def seed_single_article(article: int, session: AsyncSession):
+    """
+    Добавить один товар по артикулу (заглушка).
+    
+    Args:
+        article: Артикул WB
+        session: Асинхронная сессия БД
+        
+    Returns:
+        Список сохранённых товаров
+    """
+    products_data = [{
+        "product_id": article,
+        "name": f"Product {article}",
+        "brand": "Unknown",
+        "subject": "General",
+        "entity": "product"
+    }]
+    return await seed_to_db(products_data, session)
+
+
+async def seed_articles_batch(articles: list[int], session: AsyncSession):
+    """
+    Массовое добавление товаров по списку артикулов (заглушки).
+    
+    Args:
+        articles: Список артикулов WB
+        session: Асинхронная сессия БД
+        
+    Returns:
+        Список сохранённых товаров
+    """
+    products_data = [
+        {
+            "product_id": article,
+            "name": f"Product {article}",
+            "brand": "Unknown",
+            "subject": "General",
+            "entity": "product"
+        }
+        for article in articles
+    ]
+    return await seed_to_db(products_data, session)
+
+
+def get_wildberries_and_seed(query: str = "наушники"):
+    """
+    Поиск товаров на WB по запросу и сохранение в БД.
+    
+    Использует Selenium для получения данных из внутреннего API WB.
+    
+    Args:
+        query: Поисковый запрос
+    """
     print(f"🔎 Поиск на WB: {query}")
     options = Options()
     options.add_argument('--disable-blink-features=AutomationControlled')
@@ -70,24 +171,17 @@ def get_wildberries_and_seed(query="наушники"):
                 print("⚠ WB вернул пустой список товаров.")
                 return
 
-            to_create = []
-            for p in products:
-                name = clean_text_for_api(p.get('name', ''))
-                brand = clean_text_for_api(p.get('brand', ''))
-
-                if len(name) < 2: name = name + " Item"
-                if len(brand) < 1: brand = "Generic"
-
-                to_create.append({
-                    "product_id": int(p.get('id')),
-                    "brand": brand[:50],
-                    "name": name[:200],
-                    "subject": clean_text_for_api(p.get('subjectName', 'General')),
-                    "entity": "product"
-                })
-
+            # Трансформируем в словари
+            to_create = transform_products(products)
             print(f"📦 Подготовлено к заливке: {len(to_create)} товаров.")
-            seed_to_db(to_create)
+            
+            # Сохраняем напрямую через репозитории (без API!)
+            import asyncio
+            async def _save():
+                async with AsyncSessionLocal() as session:
+                    await seed_to_db(to_create, session)
+            
+            asyncio.run(_save())
 
         else:
             print("⚠ Не удалось извлечь JSON.")
@@ -103,11 +197,6 @@ if __name__ == "__main__":
         "штаны", "чехол", "смартфон",
         "чайник", "носки", "ковер"
     ]
-    #     [
-    #     "чай", "ноутбуки", "полотенца",
-    #     "джинсы", "пальто", "книги",
-    #     "ножи", "подушки", "колонки"
-    # ]
 
     for q in queries:
         get_wildberries_and_seed(q)

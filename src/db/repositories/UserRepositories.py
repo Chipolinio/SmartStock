@@ -1,6 +1,6 @@
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.db.models import User
+from src.db.models.User import User
 from src.db.schemas.User import UserCreate
 from src.utils.security import get_password_hash
 
@@ -44,6 +44,23 @@ async def update_user_tg_id(email: str, tg_id: int, session: AsyncSession) -> bo
     await session.commit()
     await session.refresh(db_user)
     return True
+
+async def update_user(internal_id: int, update_data: dict, session: AsyncSession) -> User | None:
+    """Обновить пользователя по внутреннему ID."""
+    stmt = select(User).where(User.id == internal_id)
+    result = await session.execute(stmt)
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        return None
+    
+    for key, value in update_data.items():
+        setattr(user, key, value)
+    
+    await session.commit()
+    await session.refresh(user)
+    return user
+
 
 async def delete_user(user_id: int, session: AsyncSession):
     stmt = delete(User).where(User.user_id == user_id)

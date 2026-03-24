@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 from typing import Sequence
 
-from src.db.models import PredictedSalesTS
+from src.db.models.PredictedSalesTS import PredictedSalesTS
 from src.db.schemas.PredictedSalesTS import PredictedSalesTSCreate
 
 async def create_predict_sales_record(predict_sales_in: PredictedSalesTSCreate, session: AsyncSession) -> PredictedSalesTS:

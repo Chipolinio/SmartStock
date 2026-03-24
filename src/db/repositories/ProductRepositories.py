@@ -1,9 +1,30 @@
 from sqlalchemy import select, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
 
-from src.db.models import Product
+from src.db.models.Product import Product
 from src.db.schemas.Product import ProductCreate, ProductUpdate
+
+
+async def get_by_article(
+    wb_article: int,
+    session: AsyncSession
+) -> Product | None:
+    """Получить товар по артикулу WB (product_id)."""
+    stmt = select(Product).where(Product.product_id == wb_article)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_id_by_article(
+    wb_article: int,
+    session: AsyncSession
+) -> int | None:
+    """Получить внутренний product_id по артикулу WB."""
+    stmt = select(Product.product_id).where(Product.product_id == wb_article)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
 
 
 async def create_product(
@@ -16,10 +37,12 @@ async def create_product(
     await session.refresh(db_product)
     return db_product
 
-async def create_product_bulk(
+
+async def bulk_upsert_products(
     products_in: list[ProductCreate],
     session: AsyncSession
 ) -> list[Product]:
+    """Массовое обновление/создание товаров (upsert)."""
     if not products_in:
         return []
 
@@ -37,6 +60,7 @@ async def create_product_bulk(
 
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
 
 async def read_product(
         product_id: int,
@@ -116,6 +140,7 @@ async def bulk_update_products(products_data: list[ProductUpdate], session: Asyn
         await session.execute(stmt)
 
     await session.flush()
+
 
 async def delete_product(
         product_id: int,

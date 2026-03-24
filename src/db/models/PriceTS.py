@@ -12,8 +12,8 @@ class PriceTS(Base):
         ForeignKey("products.product_id"),
         nullable=False)
     dt: Mapped[date] = mapped_column(Date, nullable=False)
-    price_sale: Mapped[int] = mapped_column(Integer, nullable=False)
-    discount_pct: Mapped[float] = mapped_column(Numeric(5,2))
+    price_sale: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    discount_pct: Mapped[float] = mapped_column(Numeric(5, 2), default=0)
 
     product =  relationship("Product", back_populates="prices")
 

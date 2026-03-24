@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 from typing import Sequence
 
-from src.db.models import SocialTS
+from src.db.models.SocialTS import SocialTS
 from src.db.schemas.SocialTS import SocialTSCreate
 
 async def create_social_record(social_in: SocialTSCreate, session: AsyncSession) -> SocialTS:

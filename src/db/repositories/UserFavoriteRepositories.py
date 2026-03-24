@@ -1,9 +1,13 @@
 from sqlalchemy import select, delete, exists
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Sequence, List
 
-from src.db.models import UserFavorite, Product
+from src.db.models.UserFavorite import UserFavorite
+from src.db.models.Product import Product
+from src.db.models.PriceTS import PriceTS
 from src.db.schemas.UserFavorite import UserFavoriteCreate
+
 
 async def create_user_favorites(fav_in: UserFavoriteCreate, session: AsyncSession) -> UserFavorite | None:
     check_stmt = select(UserFavorite).where(
@@ -19,6 +23,7 @@ async def create_user_favorites(fav_in: UserFavoriteCreate, session: AsyncSessio
     await session.flush()
     return db_fav
 
+
 async def create_batch_favorites(user_id: int, product_ids: List[int], session: AsyncSession):
     for p_id in product_ids:
         stmt = select(UserFavorite).where(UserFavorite.user_id == user_id, UserFavorite.product_id == p_id)
@@ -27,15 +32,30 @@ async def create_batch_favorites(user_id: int, product_ids: List[int], session: 
             session.add(UserFavorite(user_id=user_id, product_id=p_id))
     await session.flush()
 
+
 async def check_product_exists(product_id: int, session: AsyncSession) -> bool:
     stmt = select(exists().where(Product.product_id == product_id))
     result = await session.execute(stmt)
     return result.scalar()
 
+
 async def read_user_favorites(user_id: int, session: AsyncSession) -> Sequence[Product]:
-    stmt = select(Product).join(UserFavorite).where(UserFavorite.user_id == user_id)
+    """
+    Получить избранные товары пользователя с подгрузкой последней цены.
+    Использует joinedload для Product и selectinload для PriceTS.
+    """
+    stmt = (
+        select(Product)
+        .join(UserFavorite)
+        .where(UserFavorite.user_id == user_id)
+        .options(
+            joinedload(Product.prices).selectinload(PriceTS.product)
+        )
+        .order_by(Product.product_id)
+    )
     result = await session.execute(stmt)
-    return result.scalars().all()
+    return result.scalars().unique().all()
+
 
 async def delete_user_favorites(user_id: int, product_id: int, session: AsyncSession):
     stmt = delete(UserFavorite).where(UserFavorite.user_id == user_id, UserFavorite.product_id == product_id)

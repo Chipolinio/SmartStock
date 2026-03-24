@@ -4,7 +4,7 @@ from src.db.database import AsyncSessionLocal
 
 from src.services.MLService import run_daily_forecast, run_model_training
 from src.services.IntegrationService import WBScraper
-from src.services import ProductService, SalesService
+from src.services import ProductService as ProductServiceModule, SalesService as SalesServiceModule
 from src.services.DatabaseService import fill_daily_dataset
 
 
@@ -16,7 +16,7 @@ class TaskSchedulerService:
         print("🚀 Старт ежедневного конвейера данных...")
         async with AsyncSessionLocal() as session:
             try:
-                products = await ProductService.get_products_filter(session, limit=2500)
+                products = await ProductServiceModule.get_products_filter(session, limit=2500)
                 articles = [p.product_id for p in products]
                 if not articles:
                     print("⚠️ Нет товаров для работы")
@@ -25,7 +25,7 @@ class TaskSchedulerService:
                 scraper = WBScraper()
                 data_pack = await scraper.fetch_data(articles)
 
-                await SalesService.process_full(data_pack, session)
+                await SalesServiceModule.process_full(data_pack, session)
                 await session.flush()
                 await fill_daily_dataset(session)
                 await session.flush()

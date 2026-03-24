@@ -4,7 +4,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
-from src.db.models import *
+from src.db.models.Base import Base as DeclarativeBase
 from settings import settings
 
 # this is the Alembic Config object, which provides
@@ -21,7 +21,22 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 config.set_main_option("sqlalchemy.url", settings.SYNC_DATABASE_URL)
-target_metadata = Base.metadata
+
+# Import all models to ensure they are registered with Base.metadata
+# Import AFTER setting up config to avoid circular imports
+import src.db.models.Product  # noqa
+import src.db.models.User  # noqa
+import src.db.models.UserFavorite  # noqa
+import src.db.models.PriceTS  # noqa
+import src.db.models.StockTS  # noqa
+import src.db.models.SalesProxyTS  # noqa
+import src.db.models.DeliveryTS  # noqa
+import src.db.models.SocialTS  # noqa
+import src.db.models.PredictedSalesTS  # noqa
+import src.db.models.ProductFeaturesDaily  # noqa
+import src.db.models.SystemLog  # noqa
+
+target_metadata = DeclarativeBase.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

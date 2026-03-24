@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 from typing import Sequence
 
-from src.db.models import DeliveryTS
+from src.db.models.DeliveryTS import DeliveryTS
 from src.db.schemas.DeliveryTS import DeliveryTSCreate
 
 async def create_delivery_record(delivery_in: DeliveryTSCreate, session: AsyncSession) -> DeliveryTS:

@@ -7,7 +7,7 @@ from src.db.models import Base
 
 class UserFavorite(Base):
     __tablename__ = "user_favorites"
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.user_id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
     product_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("products.product_id"), nullable=False)
     added_at: Mapped[date] = mapped_column(Date, nullable=False, server_default=func.current_date())
 

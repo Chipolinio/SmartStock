@@ -1,25 +1,4 @@
-from .Base import Base
-from .DeliveryTS import DeliveryTS
-from .PredictedSalesTS import PredictedSalesTS
-from .PriceTS import PriceTS
-from .Product import Product
-from .ProductFeaturesDaily import ProductFeaturesDaily
-from .SalesProxyTS import SalesProxyTS
-from .SocialTS import SocialTS
-from .StockTS import StockTS
-from .User import User
-from .UserFavorite import UserFavorite
+# Export Base class for model inheritance
+from src.db.models.Base import Base
 
-__all__ = [
-    "Base",
-    "DeliveryTS",
-    "PredictedSalesTS",
-    "PriceTS",
-    "Product",
-    "ProductFeaturesDaily",
-    "SalesProxyTS",
-    "SocialTS",
-    "StockTS",
-    "User",
-    "UserFavorite"
-]
+__all__ = ["Base"]

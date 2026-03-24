@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 from typing import Sequence
 
-from src.db.models import PriceTS
+from src.db.models.PriceTS import PriceTS
 from src.db.schemas.PriceTS import PriceTSCreate
 
 async def create_price_record(price_in: PriceTSCreate, session: AsyncSession) -> PriceTS:

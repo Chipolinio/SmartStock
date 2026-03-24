@@ -10,13 +10,15 @@ from src.db.schemas.DeliveryTS import DeliveryTSCreate, DeliveryTSResponse
 from src.db.schemas.SocialTS import SocialTSCreate, SocialTSResponse
 from src.db.schemas.PredictedSalesTS import PredictedSalesTSCreate, PredictedSalesTSResponse
 
-from src.db.repositories import ProductRepositories
-from src.db.repositories import (StockTSRepositories,
-                                 SocialTSRepositories,
-                                 SalesProxyTSRepositories,
-                                 PriceTSRepositories,
-                                 DeliveryTSRepositories,
-                                 PredictedSalesTSRepositories)
+from src.db.repositories import ProductRepositories as ProductRepo
+from src.db.repositories import (
+    StockTSRepositories as StockRepo,
+    SocialTSRepositories as SocialRepo,
+    SalesProxyTSRepositories as SalesRepo,
+    PriceTSRepositories as PriceRepo,
+    DeliveryTSRepositories as DeliveryRepo,
+    PredictedSalesTSRepositories as PredictedRepo
+)
 
 
 
@@ -25,7 +27,7 @@ async def create_stock_ts(
     session: AsyncSession
 ):
     try:
-        stock_from_db = await StockTSRepositories.create_stock_record(
+        stock_from_db = await StockRepo.create_stock_record(
             stock_in = stock_in,
             session = session
         )
@@ -44,7 +46,7 @@ async def create_sales_proxy_ts(
     session: AsyncSession
 ) -> SalesProxyTSResponse:
     try:
-        sale_from_db = await SalesProxyTSRepositories.create_sale_record(
+        sale_from_db = await SalesRepo.create_sale_record(
             sale_in=sale_in,
             session=session
         )
@@ -62,7 +64,7 @@ async def create_price_ts(
     session: AsyncSession
 ):
     try:
-        price_from_db = await PriceTSRepositories.create_price_record(
+        price_from_db = await PriceRepo.create_price_record(
             price_in = price_in,
             session = session
         )
@@ -81,7 +83,7 @@ async def create_delivery_ts(
     session: AsyncSession
 ):
     try:
-        delivery_from_db = await DeliveryTSRepositories.create_delivery_record(
+        delivery_from_db = await DeliveryRepo.create_delivery_record(
             delivery_in = delivery_in,
             session = session
         )
@@ -100,7 +102,7 @@ async def create_social_ts(
     session: AsyncSession
 ):
     try:
-        social_from_db = await SocialTSRepositories.create_social_record(
+        social_from_db = await SocialRepo.create_social_record(
             social_in = social_in,
             session = session
         )
@@ -119,7 +121,7 @@ async def create_predicted_ts(
     session: AsyncSession
 ):
     try:
-        predicted_from_db = await PredictedSalesTSRepositories.create_predict_sales_record(
+        predicted_from_db = await PredictedRepo.create_predict_sales_record(
             predict_sales_in = predicted_in,
             session = session
         )
@@ -138,7 +140,7 @@ async def create_stocks_bulk(
     session: AsyncSession
 ) -> list[StockTSResponse]:
     try:
-        stocks_from_db = await StockTSRepositories.create_stocks_bulk(stocks_in, session)
+        stocks_from_db = await StockRepo.create_stocks_bulk(stocks_in, session)
         await session.commit()
         return [StockTSResponse.model_validate(s) for s in stocks_from_db]
     except IntegrityError:
@@ -150,7 +152,7 @@ async def create_sales_bulk(
     session: AsyncSession
 ) -> list[SalesProxyTSResponse]:
     try:
-        sales_from_db = await SalesProxyTSRepositories.create_sales_bulk(sales_in, session)
+        sales_from_db = await SalesRepo.create_sales_bulk(sales_in, session)
         await session.commit()
         return [SalesProxyTSResponse.model_validate(s) for s in sales_from_db]
     except IntegrityError:
@@ -162,7 +164,7 @@ async def create_prices_bulk(
     session: AsyncSession
 ) -> list[PriceTSResponse]:
     try:
-        prices_from_db = await PriceTSRepositories.create_prices_bulk(prices_in=prices_in, session=session)
+        prices_from_db = await PriceRepo.create_prices_bulk(prices_in=prices_in, session=session)
         await session.commit()
         return [PriceTSResponse.model_validate(p) for p in prices_from_db]
     except IntegrityError:
@@ -174,7 +176,7 @@ async def create_deliveries_bulk(
     session: AsyncSession
 ) -> list[DeliveryTSResponse]:
     try:
-        deliveries_from_db = await DeliveryTSRepositories.create_deliveries_bulk(deliveries_in=deliveries_in, session=session)
+        deliveries_from_db = await DeliveryRepo.create_deliveries_bulk(deliveries_in=deliveries_in, session=session)
         await session.commit()
         return [DeliveryTSResponse.model_validate(d) for d in deliveries_from_db]
     except IntegrityError:
@@ -186,7 +188,7 @@ async def create_socials_bulk(
     session: AsyncSession
 ) -> list[SocialTSResponse]:
     try:
-        socials_from_db = await SocialTSRepositories.create_socials_bulk(social_in=socials_in, session=session)
+        socials_from_db = await SocialRepo.create_socials_bulk(social_in=socials_in, session=session)
         await session.commit()
         return [SocialTSResponse.model_validate(s) for s in socials_from_db]
     except IntegrityError:
@@ -198,7 +200,7 @@ async def create_predicted_sales_bulk(
     session: AsyncSession
 ) -> list[PredictedSalesTSResponse]:
     try:
-        predicted_sales_from_db = await PredictedSalesTSRepositories.create_predict_sales_bulk(predict_sales_in=predicted_sales_in, session=session)
+        predicted_sales_from_db = await PredictedRepo.create_predict_sales_bulk(predict_sales_in=predicted_sales_in, session=session)
         await session.commit()
         return [PredictedSalesTSResponse.model_validate(p) for p in predicted_sales_from_db]
     except IntegrityError:
@@ -209,12 +211,12 @@ async def create_predicted_sales_bulk(
 async def process_full(data_pack: FullPayload, session: AsyncSession):
     try:
         if data_pack.products_update:
-            await ProductRepositories.bulk_update_products(data_pack.products_update, session)
+            await ProductRepo.bulk_update_products(data_pack.products_update, session)
 
         analytics_res = await analytics_data(data_pack.stocks, session)
-        await PriceTSRepositories.create_prices_bulk(data_pack.prices, session)
-        await DeliveryTSRepositories.create_deliveries_bulk(data_pack.deliveries, session)
-        await SocialTSRepositories.create_socials_bulk(data_pack.socials, session)
+        await PriceRepo.create_prices_bulk(data_pack.prices, session)
+        await DeliveryRepo.create_deliveries_bulk(data_pack.deliveries, session)
+        await SocialRepo.create_socials_bulk(data_pack.socials, session)
 
         await session.commit()
 
@@ -234,7 +236,7 @@ async def get_stock_history(
     limit: int = 30
 ) -> list[StockTSResponse]:
 
-    stocks = await StockTSRepositories.read_stocks_history(
+    stocks = await StockRepo.read_stocks_history(
         product_id=product_id,
         session=session,
         limit=limit
@@ -246,7 +248,7 @@ async def get_sales_history(
     session: AsyncSession,
     limit: int = 30
 ) -> list[SalesProxyTSResponse]:
-    sales = await SalesProxyTSRepositories.read_sales_history(
+    sales = await SalesRepo.read_sales_history(
         product_id=product_id,
         session=session,
         limit=limit
@@ -258,7 +260,7 @@ async def get_prices_history(
     session: AsyncSession,
     limit: int = 30
 ) -> list[PriceTSResponse]:
-    prices = await PriceTSRepositories.read_prices_history(
+    prices = await PriceRepo.read_prices_history(
         product_id=product_id,
         session=session,
         limit=limit
@@ -270,7 +272,7 @@ async def get_deliveries_history(
     session: AsyncSession,
     limit: int = 30
 ) -> list[DeliveryTSResponse]:
-    deliveries = await DeliveryTSRepositories.read_delivery_history(
+    deliveries = await DeliveryRepo.read_delivery_history(
         product_id=product_id,
         session=session,
         limit=limit
@@ -282,7 +284,7 @@ async def get_socials_history(
     session: AsyncSession,
     limit: int = 30
 ) -> list[SocialTSResponse]:
-    socials = await SocialTSRepositories.read_socials_history(
+    socials = await SocialRepo.read_socials_history(
         product_id=product_id,
         session=session,
         limit=limit
@@ -294,7 +296,7 @@ async def get_predicted_sales_history(
     session: AsyncSession,
     limit: int = 30
 ) -> list[PredictedSalesTSResponse]:
-    predicted_sales = await PredictedSalesTSRepositories.read_predict_sales_history(
+    predicted_sales = await PredictedRepo.read_predict_sales_history(
         product_id=product_id,
         session=session,
         limit=limit
@@ -331,7 +333,7 @@ async def analytics_data(
     if not stocks_in:
         return {"status": "skipped", "detail": "Empty stock list"}
     product_ids = list({s.product_id for s in stocks_in})
-    latest_stocks = await StockTSRepositories.read_latest_stocks_for_products(product_ids, session)
+    latest_stocks = await StockRepo.read_latest_stocks_for_products(product_ids, session)
     old_stocks_map = {s.product_id: s.quantity for s in latest_stocks} if latest_stocks else {}
 
     sales_to_create = calculate_proxy_sales(stocks_in, old_stocks_map)
@@ -339,10 +341,10 @@ async def analytics_data(
     try:
         created_sales_count = 0
         if sales_to_create:
-            res_sales = await SalesProxyTSRepositories.create_sales_bulk(sales_to_create, session)
+            res_sales = await SalesRepo.create_sales_bulk(sales_to_create, session)
             created_sales_count = len(res_sales)
 
-        res_stocks = await StockTSRepositories.create_stocks_bulk(stocks_in, session)
+        res_stocks = await StockRepo.create_stocks_bulk(stocks_in, session)
 
         return {
             "status": "success",
@@ -358,11 +360,11 @@ async def get_product_analytics(
         product_id: int,
         session: AsyncSession
 ) -> dict:
-    velocity_14 = await SalesProxyTSRepositories.calculate_velocity_with_oos(
+    velocity_14 = await SalesRepo.calculate_velocity_with_oos(
         product_id=product_id, days=14, session=session
     )
 
-    latest_stock = await StockTSRepositories.read_stock_latest(product_id, session)
+    latest_stock = await StockRepo.read_stock_latest(product_id, session)
     stock_qty = latest_stock.quantity if latest_stock else 0
 
     oos_days = int(stock_qty / velocity_14) if velocity_14 > 0 else 999

@@ -4,7 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date, timedelta
 from typing import Sequence
 
-from src.db.models import SalesProxyTS, StockTS
+from src.db.models.SalesProxyTS import SalesProxyTS
+from src.db.models.StockTS import StockTS
 from src.db.schemas.SalesProxyTS import SalesProxyTSCreate
 
 

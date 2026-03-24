@@ -2,8 +2,24 @@ from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import date
 
+from src.db.schemas.DashboardMetric import (
+    SalesHistoryResponse,
+    StockDynamicsResponse,
+    ABCAnalysisResponse,
+    XYZAnalysisResponse,
+    TopProductsByRevenueResponse,
+    TopProductsBySalesResponse,
+    ProductsRatingResponse,
+    DashboardKPIResponse
+)
+
+# =============================================================================
+# УНИВЕРСАЛЬНАЯ АНАЛИТИКА (для /analytics/aggregate)
+# =============================================================================
+
 DimensionType = Literal["dt", "brand", "subject", "product_id"]
 MetricType = Literal["revenue", "sales", "rating", "abc", "xyz", "score", "recommendation"]
+
 
 class AnalyticsMetrics(BaseModel):
     revenue: Optional[float] = None
@@ -13,10 +29,12 @@ class AnalyticsMetrics(BaseModel):
     score: Optional[float] = None
     avg_rating: Optional[float] = None
 
+
 class AnalyticsEntry(BaseModel):
     dimensions: Dict[DimensionType, Any]
     metrics: AnalyticsMetrics
     recommendation: Optional[str] = None
+
 
 class AnalyticsRequest(BaseModel):
     date_from: date
@@ -37,8 +55,34 @@ class AnalyticsRequest(BaseModel):
         }
     )
 
+
 class AnalyticsResponse(BaseModel):
     status: str = "success"
     data: List[AnalyticsEntry]
     model_config = ConfigDict(from_attributes=True)
+
+
+# =============================================================================
+# DASHBOARD BASE REQUEST (для /dashboard/*)
+# =============================================================================
+
+class DashboardBaseRequest(BaseModel):
+    """Базовый запрос для дашборда."""
+    days: int = Field(default=30, ge=1, le=365, description="Период в днях")
+    product_id: Optional[int] = Field(None, gt=0, description="Фильтр по товару")
+    brand: Optional[str] = Field(None, description="Фильтр по бренду")
+    subject: Optional[str] = Field(None, description="Фильтр по категории")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# =============================================================================
+# СХЕМЫ ДЛЯ DASHBOARD (используются в /dashboard/*)
+# =============================================================================
+# Эти классы — алиасы на схемы из DashboardMetric для удобства импорта
+
+# SalesDynamicsResponse уже определён как SalesHistoryResponse в DashboardMetric
+# StockDynamicsResponse уже определён как StockDynamicsResponse в DashboardMetric
+# ABCAnalysisResponse уже определён как ABCAnalysisResponse в DashboardMetric
+# и т.д.
 

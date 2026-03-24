@@ -13,7 +13,7 @@ class SalesProxyTS(Base):
         nullable=False)
     dt: Mapped[date] = mapped_column(Date, nullable=False)
     sales: Mapped[int] = mapped_column(Integer, nullable=False)
-    confidence: Mapped[float] = mapped_column(Numeric(3, 2))
+    confidence: Mapped[float] = mapped_column(default=0.85)
 
     product = relationship("Product", back_populates="sales_proxies")
 

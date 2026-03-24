@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import Response
 
@@ -6,13 +6,25 @@ from starlette.status import HTTP_201_CREATED
 
 from src.db.database import get_db
 from src.utils.security import set_auth_token
-from src.utils.dependencies import is_user_admin
-from src.db.schemas.User import UserCreate, UserLogin
-from src.services import AuthService
+from src.utils.dependencies import is_user_admin, get_user
+from src.db.schemas.User import UserCreate, UserLogin, UserResponse
+from src.services.AuthService import registration as registration_service, login as login_service
 import logging
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_info(
+    session: AsyncSession = Depends(get_db),
+    user_data: dict = Depends(get_user)
+):
+    """Получить информацию о текущем пользователе."""
+    from src.db.repositories.UserRepositories import read_user_by_id
+    user = await read_user_by_id(user_data["user_id"], session)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return UserResponse.model_validate(user)
 
 @router.post("/registration/", status_code=HTTP_201_CREATED)
 async def registration(
@@ -20,13 +32,15 @@ async def registration(
         response: Response,
         session: AsyncSession = Depends(get_db)
 ):
-    token, refresh_token = await AuthService.registration(
+    token, refresh_token = await registration_service(
         user_data=user_data,
         session=session,
     )
     set_auth_token(response, token, "access_token")
     set_auth_token(response, refresh_token, "refresh_token")
     return {"status": "success"}
+
+
 @router.post(
     "/login/",
     status_code=status.HTTP_200_OK,
@@ -36,7 +50,7 @@ async def login(
         response: Response,
         session: AsyncSession = Depends(get_db)
 ):
-    token, refresh_token = await AuthService.login(
+    token, refresh_token = await login_service(
         login_data=login_data,
         session=session,
     )

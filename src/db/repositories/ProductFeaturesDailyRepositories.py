@@ -4,10 +4,12 @@ from sqlalchemy.dialects.postgresql import insert
 from datetime import date, timedelta
 from typing import Sequence
 
-from src.db.models import (
-    Product, PriceTS, SocialTS, StockTS,
-    SalesProxyTS, ProductFeaturesDaily
-)
+from src.db.models.Product import Product
+from src.db.models.PriceTS import PriceTS
+from src.db.models.SocialTS import SocialTS
+from src.db.models.StockTS import StockTS
+from src.db.models.SalesProxyTS import SalesProxyTS
+from src.db.models.ProductFeaturesDaily import ProductFeaturesDaily
 from src.db.schemas.ProductFeaturesDaily import ProductFeaturesDailyCreate
 
 

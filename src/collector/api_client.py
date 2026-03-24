@@ -1,1 +1,0 @@
-# Обёртка над ozonapi-async

@@ -1,73 +1,207 @@
-import numpy as np
 import logging
 from typing import List
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import date, timedelta
 
-from src.db.repositories.AnalyticsRepository import fetch_universal_data
-from src.db.schemas.Analytics import (
-    AnalyticsRequest,
-    AnalyticsEntry,
-    AnalyticsMetrics,
+from src.db.repositories.AnalyticsRepository import (
+    get_sales_history as repo_get_sales_history,
+    get_stock_dynamics as repo_get_stock_dynamics,
+    get_abc_data as repo_get_abc_data,
+    get_xyz_data as repo_get_xyz_data,
+    get_top_products_by_revenue as repo_get_top_products_by_revenue,
+    get_top_products_by_sales as repo_get_top_products_by_sales,
+    get_products_rating as repo_get_products_rating,
+    get_dashboard_kpi as repo_get_dashboard_kpi
 )
+from src.db.schemas.Analytics import (
+    DashboardBaseRequest,
+)
+from src.db.schemas.DashboardMetric import (
+    SalesDynamicsResponse,
+    StockDynamicsResponse,
+    ABCAnalysisResponse,
+    XYZAnalysisResponse,
+    TopProductsByRevenueResponse,
+    TopProductsBySalesResponse,
+    ProductsRatingResponse,
+    DashboardKPIResponse,
+)
+from src.db.schemas.Forecast import (
+    ProductForecastsResponse,
+    ForecastHistoryResponse,
+    ForecastSummaryResponse,
+)
+from src.services import MLService as MLServiceModule
 
 logger = logging.getLogger(__name__)
 
 
-def get_recommendation_text(abc: str, xyz: str, score: float) -> str:
-    segment = f"{abc}{xyz}"
-    rules = {
-        "AX": "Хит: поддерживайте остатки и не снижайте цену.",
-        "CZ": "Неликвид: рассмотрите вывод товара из ассортимента.",
-        "AZ": "Рискованный товар: высокий оборот при нестабильном спросе.",
-        "CX": "Стабильный аутсайдер: малые продажи, но предсказуемые."
-    }
-    advice = rules.get(segment, "Средние показатели: следите за динамикой.")
-    if score < 0.45:
-        advice += " Срочно: низкий скоринг, проверьте отзывы/логистику."
-    return advice
-
-
-async def run_unified_analytics(session: AsyncSession, user_id: int, q: AnalyticsRequest) -> List[AnalyticsEntry]:
-    try:
-        raw_rows = await fetch_universal_data(session, user_id, q)
-
-        final_results = []
-        for row in raw_rows:
-            std_dev = row.get('sales_std') or 0
-            avg_sales = row.get('sales_avg') or 0
-
-            cv = (float(std_dev) / float(avg_sales)) if float(avg_sales) > 0 else 0
-
-            r_norm = float(row.get('avg_rating') or 0) / 5
-            f_norm = np.log1p(float(row.get('max_feedbacks') or 0)) / 10
-            d_norm = 1 / (float(row.get('avg_delivery') or 5) + 1)
-            calculated_score = round(float(np.clip((r_norm * 0.4) + (f_norm * 0.3) + (d_norm * 0.3), 0, 1)), 2)
-
-            abc_val = row.get('abc_sql') or 'C'
-            xyz_val = 'X' if cv <= 0.1 else ('Y' if cv <= 0.25 else 'Z')
-
-            m = AnalyticsMetrics()
-            if "revenue" in q.metrics: m.revenue = round(float(row.get('total_revenue') or 0), 2)
-            if "sales" in q.metrics: m.sales = int(row.get('total_sales') or 0)
-            if "abc" in q.metrics: m.abc = abc_val
-            if "xyz" in q.metrics: m.xyz = xyz_val
-            if "score" in q.metrics: m.score = calculated_score
-            if "rating" in q.metrics: m.avg_rating = round(row.get('avg_rating') or 0, 1)
-
-            entry = AnalyticsEntry(
-                dimensions={d: row.get(d) for d in q.dimensions},
-                metrics=m,
-                recommendation=get_recommendation_text(abc_val, xyz_val, calculated_score)
-                if "recommendation" in q.metrics else None
-            )
-            final_results.append(entry)
-
-        return final_results
-
-    except Exception as e:
-        logger.error(f"Analytics Pipeline Error: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during analytics processing"
+async def get_sales_dynamics(
+    session: AsyncSession,
+    user_id: int,
+    request: DashboardBaseRequest
+) -> SalesDynamicsResponse:
+    """Получить динамику продаж и выручки."""
+    if request.product_id:
+        return await repo_get_sales_history(
+            session=session,
+            product_id=request.product_id,
+            days=request.days
         )
+    
+    # Если product_id не указан, возвращаем ошибку
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="product_id is required for sales dynamics"
+    )
+
+
+async def get_stock_dynamics(
+    session: AsyncSession,
+    user_id: int,
+    request: DashboardBaseRequest
+) -> StockDynamicsResponse:
+    """Получить динамику остатков на складе."""
+    if request.product_id:
+        return await repo_get_stock_dynamics(
+            session=session,
+            product_id=request.product_id,
+            days=request.days
+        )
+    
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="product_id is required for stock dynamics"
+    )
+
+
+async def get_abc_analysis(
+    session: AsyncSession,
+    user_id: int,
+    request: DashboardBaseRequest
+) -> ABCAnalysisResponse:
+    """Получить ABC-анализ товаров."""
+    return await repo_get_abc_data(
+        session=session,
+        user_id=user_id,
+        days=request.days
+    )
+
+
+async def get_xyz_analysis(
+    session: AsyncSession,
+    user_id: int,
+    request: DashboardBaseRequest
+) -> XYZAnalysisResponse:
+    """Получить XYZ-анализ товаров."""
+    return await repo_get_xyz_data(
+        session=session,
+        user_id=user_id,
+        days=request.days
+    )
+
+
+async def get_top_products_by_revenue(
+    session: AsyncSession,
+    user_id: int,
+    request: DashboardBaseRequest,
+    limit: int = 10
+) -> TopProductsByRevenueResponse:
+    """Получить топ товаров по выручке."""
+    return await repo_get_top_products_by_revenue(
+        session=session,
+        user_id=user_id,
+        limit=limit,
+        days=request.days
+    )
+
+
+async def get_top_products_by_sales(
+    session: AsyncSession,
+    user_id: int,
+    request: DashboardBaseRequest,
+    limit: int = 10
+) -> TopProductsBySalesResponse:
+    """Получить топ товаров по продажам."""
+    return await repo_get_top_products_by_sales(
+        session=session,
+        user_id=user_id,
+        limit=limit,
+        days=request.days
+    )
+
+
+async def get_products_rating(
+    session: AsyncSession,
+    user_id: int,
+    request: DashboardBaseRequest,
+    limit: int = 10
+) -> ProductsRatingResponse:
+    """Получить рейтинг товаров по оценкам."""
+    return await repo_get_products_rating(
+        session=session,
+        user_id=user_id,
+        limit=limit,
+        days=request.days
+    )
+
+
+async def get_dashboard_kpi(
+    session: AsyncSession,
+    user_id: int,
+    request: DashboardBaseRequest
+) -> DashboardKPIResponse:
+    """Получить сводные KPI дашборда."""
+    return await repo_get_dashboard_kpi(
+        session=session,
+        user_id=user_id,
+        days=request.days
+    )
+
+
+# =============================================================================
+# ПРОГНОЗЫ (Forecast Methods)
+# =============================================================================
+
+async def get_product_forecasts(
+    session: AsyncSession,
+    user_id: int,
+    request: DashboardBaseRequest
+) -> ProductForecastsResponse:
+    """Получить прогнозы по всем избранным товарам."""
+    return await MLServiceModule.get_product_forecasts(
+        session=session,
+        user_id=user_id,
+        days=request.days
+    )
+
+
+async def get_forecast_history(
+    session: AsyncSession,
+    user_id: int,
+    days: int = 30,
+    product_id: int | None = None
+) -> ForecastHistoryResponse:
+    """Получить историю прогнозов продаж."""
+    if not product_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="product_id is required for forecast history"
+        )
+    return await MLServiceModule.get_forecast_history(
+        session=session,
+        product_id=product_id,
+        limit=days
+    )
+
+
+async def get_forecast_summary(
+    session: AsyncSession,
+    user_id: int
+) -> ForecastSummaryResponse:
+    """Получить сводную статистику по прогнозам."""
+    return await MLServiceModule.get_forecast_summary(
+        session=session,
+        user_id=user_id
+    )

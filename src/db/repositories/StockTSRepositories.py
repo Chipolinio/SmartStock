@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 from typing import Sequence
 
-from src.db.models import StockTS
+from src.db.models.StockTS import StockTS
 from src.db.schemas.StockTS import StockTSCreate
 
 
