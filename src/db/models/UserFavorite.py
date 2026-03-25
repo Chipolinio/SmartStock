@@ -12,4 +12,8 @@ class UserFavorite(Base):
     added_at: Mapped[date] = mapped_column(Date, nullable=False, server_default=func.current_date())
 
     user: Mapped["User"] = relationship(back_populates="favorites")
-    product: Mapped["Product"] = relationship(back_populates="favorited_by")
+    product: Mapped["Product"] = relationship(lambda: Product, back_populates="favorited_by")
+
+
+from src.db.models.Product import Product
+from src.db.models.User import User

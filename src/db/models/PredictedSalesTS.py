@@ -15,8 +15,11 @@ class PredictedSalesTS(Base):
     predicted_sales: Mapped[float]  = mapped_column(Numeric(12, 2), nullable=False)
     model_version: Mapped[str]  = mapped_column(String, nullable=False)
 
-    product = relationship("Product", back_populates="predictions")
+    product = relationship(lambda: Product, back_populates="predictions")
 
     __table_args__ = (
         UniqueConstraint( "product_id", "dt", name="uq_predicted_sales_product_dt"),
     )
+
+
+from src.db.models.Product import Product

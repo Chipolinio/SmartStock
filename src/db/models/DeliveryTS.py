@@ -13,8 +13,11 @@ class DeliveryTS(Base):
     dt: Mapped[date] = mapped_column(Date, nullable=False)
     delivery_days: Mapped[int] = mapped_column(Integer)
 
-    product = relationship("Product", back_populates="deliveries")
+    product = relationship(lambda: Product, back_populates="deliveries")
 
     __table_args__ = (
         UniqueConstraint("product_id", "dt", name="uq_delivery_product_dt"),
     )
+
+
+from src.db.models.Product import Product

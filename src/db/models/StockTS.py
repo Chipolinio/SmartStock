@@ -13,8 +13,11 @@ class StockTS(Base):
     dt: Mapped[date] = mapped_column(Date, nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    product = relationship("Product", back_populates="stocks")
+    product = relationship(lambda: Product, back_populates="stocks")
 
     __table_args__ = (
         UniqueConstraint("product_id", "dt", name="uq_stock_product_dt"),
     )
+
+
+from src.db.models.Product import Product

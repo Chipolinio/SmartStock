@@ -23,8 +23,12 @@ class ProductFeaturesDaily(Base):
     price_rank_in_category: Mapped[int] = mapped_column(Integer)
     rating_rank_in_category: Mapped[int] = mapped_column(Integer)
 
-    product = relationship("Product", back_populates="features")
+    product = relationship(lambda: Product, back_populates="features")
 
     __table_args__ = (
-        UniqueConstraint( "product_id", "dt", name="uq_features_product_dt"),
+        UniqueConstraint("product_id", "dt", name="uq_features_product_dt"),
     )
+
+
+# Импортируем после определения класса для корректной работы lambda-relationship
+from src.db.models.Product import Product

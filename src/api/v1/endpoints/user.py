@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Response, HTTPException, Body, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, status, Response, HTTPException, BackgroundTasks, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
@@ -116,7 +116,7 @@ async def delete_fav_product(
 
 
 # =============================================================================
-# ПРОФИЛЬ И TELEGRAM
+# ПРОФИЛЬ И TELEGRAM (максимально просто)
 # =============================================================================
 
 @router.get("/profile", response_model=UserResponse)
@@ -125,8 +125,8 @@ async def get_profile(
     user_data: dict = Depends(get_user)
 ):
     """Получить профиль текущего пользователя."""
-    from src.db.repositories.UserRepositories import read_user_by_id
-    user = await read_user_by_id(user_data["user_id"], session)
+    from src.db.repositories.UserRepositories import read_user_by_internal_id
+    user = await read_user_by_internal_id(user_data["user_id"], session)
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
     return UserResponse.model_validate(user)
@@ -140,51 +140,20 @@ async def update_profile(
 ):
     """Обновить профиль текущего пользователя."""
     from src.db.repositories.UserRepositories import update_user
-    
+
     # Разрешаем обновлять только user_id (Telegram ID)
     update_data = user_update.model_dump(exclude_unset=True)
     if "email" in update_data or "role" in update_data or "is_pro" in update_data or "is_active" in update_data:
         raise HTTPException(status_code=403, detail="Нельзя обновлять это поле")
-    
+
     if not update_data:
         raise HTTPException(status_code=400, detail="Нет данных для обновления")
-    
+
     user = await update_user(user_data["user_id"], update_data, session)
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
-    
+
     return UserResponse.model_validate(user)
-
-
-@router.post("/telegram", response_model=dict)
-async def set_telegram_id(
-    telegram_id: int = Body(..., embed=True, gt=0),
-    session: AsyncSession = Depends(get_db),
-    user_data: dict = Depends(get_user)
-):
-    """Привязать Telegram ID к текущему пользователю."""
-    from sqlalchemy import select
-    from src.db.models.User import User
-    
-    # Проверка на дубликат
-    result = await session.execute(select(User).where(User.user_id == telegram_id))
-    existing_user = result.scalar_one_or_none()
-    
-    if existing_user and existing_user.id != user_data["user_id"]:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Этот Telegram ID уже привязан к другому пользователю"
-        )
-    
-    # Обновление текущего пользователя
-    from src.db.repositories.UserRepositories import update_user
-    user = await update_user(user_data["user_id"], {"user_id": telegram_id}, session)
-    
-    return {
-        "status": "success",
-        "telegram_id": telegram_id,
-        "message": "Telegram ID успешно привязан"
-    }
 
 
 @router.get("/telegram/info")
@@ -192,14 +161,71 @@ async def get_telegram_info(
     session: AsyncSession = Depends(get_db),
     user_data: dict = Depends(get_user)
 ):
-    """Получить информацию о привязанном Telegram ID."""
-    from src.db.repositories.UserRepositories import read_user_by_id
-    
-    user = await read_user_by_id(user_data["user_id"], session)
+    """
+    Получить информацию о привязанном Telegram.
+
+    Для привязки: отправить боту команду /link <my_user_id>
+    """
+    from src.db.repositories.UserRepositories import read_user_by_internal_id
+
+    user = await read_user_by_internal_id(user_data["user_id"], session)
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
-    
+
     return {
         "telegram_id": user.user_id,
-        "is_linked": user.user_id is not None
+        "is_linked": user.user_id is not None,
+        "my_user_id": user.id  # Этот ID нужно отправить боту: /link <my_user_id>
     }
+
+
+@router.post("/telegram/link", response_model=dict)
+async def link_telegram(
+    telegram_id: int = Query(..., description="Telegram ID пользователя"),
+    user_id: int = Query(..., description="Внутренний ID пользователя на сайте"),
+    session: AsyncSession = Depends(get_db)
+):
+    """
+    Привязать Telegram к аккаунту (для бота).
+    
+    Оба параметра в query params:
+    - telegram_id: Telegram ID (кто пишет боту)
+    - user_id: Внутренний ID пользователя на сайте (к чему привязать)
+    """
+    from sqlalchemy import select
+    from src.db.models.User import User
+    
+    # Проверяем, не привязан ли уже этот TG
+    check_stmt = select(User).where(
+        User.user_id == telegram_id,
+        User.id != user_id
+    )
+    check_result = await session.execute(check_stmt)
+    existing = check_result.scalar_one_or_none()
+    
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail="Этот Telegram уже привязан к другому аккаунту"
+        )
+    
+    # Привязываем
+    from src.db.repositories.UserRepositories import update_user
+    user = await update_user(user_id, {"user_id": telegram_id}, session)
+    
+    return {"status": "success", "message": "Telegram привязан", "telegram_id": telegram_id}
+
+
+@router.delete("/telegram/unlink", response_model=dict)
+async def unlink_telegram(
+    session: AsyncSession = Depends(get_db),
+    user_data: dict = Depends(get_user)
+):
+    """Отвязать Telegram."""
+    from src.db.repositories.UserRepositories import update_user
+    
+    user = await update_user(user_data["user_id"], {"user_id": None}, session)
+    if not user:
+        raise HTTPException(404, "Пользователь не найден")
+    
+    return {"status": "success", "message": "Telegram отвязан"}

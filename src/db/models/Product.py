@@ -12,11 +12,22 @@ class Product(Base):
     subject: Mapped[str] = mapped_column(String)
     entity: Mapped[str] = mapped_column(String)
 
-    prices = relationship("PriceTS", back_populates="product", cascade="all, delete-orphan", lazy="raise")
-    stocks = relationship("StockTS", back_populates="product", cascade="all, delete-orphan", lazy="raise")
-    socials = relationship("SocialTS", back_populates="product", cascade="all, delete-orphan", lazy="raise")
-    deliveries = relationship("DeliveryTS", back_populates="product", cascade="all, delete-orphan", lazy="raise")
-    sales_proxies = relationship("SalesProxyTS", back_populates="product", cascade="all, delete-orphan", lazy="raise")
-    features = relationship("ProductFeaturesDaily", back_populates="product", cascade="all, delete-orphan", lazy="raise")
-    predictions = relationship("PredictedSalesTS", back_populates="product", cascade="all, delete-orphan", lazy="raise")
+    prices = relationship(lambda: PriceTS, back_populates="product", cascade="all, delete-orphan")
+    stocks = relationship(lambda: StockTS, back_populates="product", cascade="all, delete-orphan")
+    socials = relationship(lambda: SocialTS, back_populates="product", cascade="all, delete-orphan")
+    deliveries = relationship(lambda: DeliveryTS, back_populates="product", cascade="all, delete-orphan")
+    sales_proxies = relationship(lambda: SalesProxyTS, back_populates="product", cascade="all, delete-orphan")
+    features = relationship(lambda: ProductFeaturesDaily, back_populates="product", cascade="all, delete-orphan")
+    predictions = relationship(lambda: PredictedSalesTS, back_populates="product", cascade="all, delete-orphan")
     favorited_by: Mapped[list["UserFavorite"]] = relationship(back_populates="product", cascade="all, delete-orphan")
+
+
+# Импортируем после определения класса для корректной работы lambda-relationships
+from src.db.models.PriceTS import PriceTS
+from src.db.models.StockTS import StockTS
+from src.db.models.SocialTS import SocialTS
+from src.db.models.DeliveryTS import DeliveryTS
+from src.db.models.SalesProxyTS import SalesProxyTS
+from src.db.models.ProductFeaturesDaily import ProductFeaturesDaily
+from src.db.models.PredictedSalesTS import PredictedSalesTS
+from src.db.models.UserFavorite import UserFavorite

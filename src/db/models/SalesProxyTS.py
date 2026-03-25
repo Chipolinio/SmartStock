@@ -15,8 +15,11 @@ class SalesProxyTS(Base):
     sales: Mapped[int] = mapped_column(Integer, nullable=False)
     confidence: Mapped[float] = mapped_column(default=0.85)
 
-    product = relationship("Product", back_populates="sales_proxies")
+    product = relationship(lambda: Product, back_populates="sales_proxies")
 
     __table_args__ = (
         UniqueConstraint("product_id", "dt", name="uq_sales_product_dt"),
     )
+
+
+from src.db.models.Product import Product

@@ -14,8 +14,11 @@ class SocialTS(Base):
     rating: Mapped[float] = mapped_column(Numeric(3,2))
     feedbacks: Mapped[int] = mapped_column(Integer)
 
-    product = relationship("Product", back_populates="socials")
+    product = relationship(lambda: Product, back_populates="socials")
 
     __table_args__ = (
         UniqueConstraint("product_id", "dt", name="uq_social_product_dt"),
     )
+
+
+from src.db.models.Product import Product

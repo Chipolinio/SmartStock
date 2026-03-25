@@ -1,11 +1,9 @@
 from sqlalchemy import select, delete, exists
-from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Sequence, List
 
 from src.db.models.UserFavorite import UserFavorite
 from src.db.models.Product import Product
-from src.db.models.PriceTS import PriceTS
 from src.db.schemas.UserFavorite import UserFavoriteCreate
 
 
@@ -41,16 +39,13 @@ async def check_product_exists(product_id: int, session: AsyncSession) -> bool:
 
 async def read_user_favorites(user_id: int, session: AsyncSession) -> Sequence[Product]:
     """
-    Получить избранные товары пользователя с подгрузкой последней цены.
-    Использует joinedload для Product и selectinload для PriceTS.
+    Получить избранные товары пользователя.
+    Без eager loading чтобы не триггерить relationships Product.
     """
     stmt = (
         select(Product)
         .join(UserFavorite)
         .where(UserFavorite.user_id == user_id)
-        .options(
-            joinedload(Product.prices).selectinload(PriceTS.product)
-        )
         .order_by(Product.product_id)
     )
     result = await session.execute(stmt)

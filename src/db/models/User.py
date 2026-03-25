@@ -19,3 +19,6 @@ class User(Base):
     )
 
     favorites: Mapped[list["UserFavorite"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+from src.db.models.UserFavorite import UserFavorite
