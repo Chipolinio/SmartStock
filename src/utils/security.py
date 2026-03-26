@@ -37,7 +37,9 @@ def set_auth_token(response: Response, token: str, key: str, max_age: int = 1800
         key=key,
         value=token,
         httponly=True,
-        samesite="lax",
-        secure=False,
-        max_age=max_age
+        samesite="lax",  # Или "none" для кросс-доменных запросов
+        secure=False,  # False для HTTP (localhost)
+        max_age=max_age,
+        path="/",  # Cookie доступна для всего сайта
+        domain=None  # None для localhost
     )

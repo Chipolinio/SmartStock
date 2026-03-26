@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - Админ-панель</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-dark': '#070F26',
+                        'brand-blue': '#123273',
+                        'brand-light-bg': '#F3F6FD',
+                        'brand-blue-light': '#E4E9FC',
+                        'brand-grey-border': '#F2F2F2',
+                        'brand-white': '#FFFFFF',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-brand-light-bg min-h-screen text-brand-dark">
+    <!-- Боковая панель -->
+    <nav class="sidebar">
+        <h1 class="sidebar-logo">SmartStock</h1>
+        <ul class="space-y-2">
+            <li>
+                <a href="/dashboard" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 Дашборд
+                </a>
+            </li>
+            <li>
+                <a href="/favorites" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    ❤️ Избранное
+                </a>
+            </li>
+            <li>
+                <a href="/products" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏷️ Товары
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-sales" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📈 Аналитика
+                </a>
+            </li>
+            <li>
+                <a href="/forecasts" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔮 Прогнозы
+                </a>
+            </li>
+            <li>
+                <a href="/telegram" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📱 Telegram
+                </a>
+            </li>
+            <li>
+                <a href="/profile" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    👤 Профиль
+                </a>
+            </li>
+            <li>
+                <a href="/admin" class="block p-3 bg-brand-blue rounded-lg text-white font-medium" data-requires-admin>
+                    ⚙️ Админка
+                </a>
+            </li>
+        </ul>
+        <div class="absolute bottom-4 left-4 right-4">
+            <div class="mb-2 text-sm text-gray-500 truncate" data-user-info></div>
+            <button
+                onclick="AuthHelper.logout()"
+                class="w-full p-3 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+            >
+                Выйти
+            </button>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <main class="ml-64 p-8">
+        <!-- Заголовок -->
+        <header class="mb-8">
+            <h2 class="text-3xl font-bold text-brand-dark">Админ-панель</h2>
+            <p class="text-gray-600 mt-1">Управление системой и мониторинг задач</p>
+        </header>
+
+        <!-- Управление задачами -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Запуск скрапера -->
+            <div class="card fade-in">
+                <h3 class="text-lg font-bold mb-4">🔄 Запустить скрапер</h3>
+                <p class="text-gray-500 text-sm mb-4">Добавление нового товара по артикулу WB</p>
+                <input
+                    type="number"
+                    id="scraper-article"
+                    class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none mb-4"
+                    placeholder="Артикул WB"
+                    min="1"
+                >
+                <button
+                    id="run-scraper-btn"
+                    onclick="runScraper()"
+                    class="w-full py-3 bg-brand-blue text-white rounded-lg font-semibold hover:bg-brand-blue/90 transition-colors"
+                >
+                    Запустить скрапер
+                </button>
+            </div>
+
+            <!-- Переобучение модели -->
+            <div class="card fade-in">
+                <h3 class="text-lg font-bold mb-4">🤖 ML Модель</h3>
+                <p class="text-gray-500 text-sm mb-4">Переобучение модели прогнозирования</p>
+                <div class="space-y-3">
+                    <button
+                        id="train-model-btn"
+                        onclick="trainModel()"
+                        class="w-full py-3 bg-brand-blue text-white rounded-lg font-semibold hover:bg-brand-blue/90 transition-colors"
+                    >
+                        Переобучить модель
+                    </button>
+                    <button
+                        id="run-forecast-btn"
+                        onclick="runForecast()"
+                        class="w-full py-3 bg-brand-blue-light text-brand-blue rounded-lg font-semibold hover:bg-brand-blue/20 transition-colors"
+                    >
+                        Запустить прогноз
+                    </button>
+                </div>
+            </div>
+
+            <!-- Статус системы -->
+            <div class="card fade-in">
+                <h3 class="text-lg font-bold mb-4">📊 Статус системы</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500 text-sm">Скрапер</span>
+                        <span class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                            <span class="text-green-500 font-medium text-sm">Активен</span>
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500 text-sm">ML Модель</span>
+                        <span class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                            <span class="text-green-500 font-medium text-sm">Готова</span>
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500 text-sm">Прогнозы</span>
+                        <span class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                            <span class="text-yellow-500 font-medium text-sm">Ежедневно</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-brand-grey-border">
+                    <p class="text-xs text-gray-400">Последнее обновление:</p>
+                    <p class="text-sm font-medium" id="last-update">—</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Системные логи -->
+        <div class="card fade-in">
+            <div class="flex-between mb-4">
+                <h3 class="text-lg font-bold">📋 Системные логи</h3>
+                <div class="flex gap-2">
+                    <select
+                        id="log-task-filter"
+                        onchange="loadSystemLogs()"
+                        class="px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                    >
+                        <option value="">Все задачи</option>
+                        <option value="scraper">Скрапер</option>
+                        <option value="ml_train">ML Обучение</option>
+                        <option value="ml_forecast">ML Прогноз</option>
+                    </select>
+                    <button
+                        onclick="loadSystemLogs()"
+                        class="px-4 py-2 bg-brand-blue text-white rounded-lg hover:bg-brand-blue/90 transition-colors"
+                    >
+                        Обновить
+                    </button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="data-table w-full">
+                    <thead>
+                        <tr>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">ID</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Задача</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Статус</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Сообщение</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Время</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-table-body">
+                        <tr>
+                            <td colspan="5" class="py-8 text-center text-gray-400">Загрузка логов...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 flex justify-center">
+                <button
+                    onclick="loadMoreLogs()"
+                    class="px-6 py-2 text-brand-blue hover:underline text-sm font-medium"
+                >
+                    Загрузить еще
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/api-client.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script>
+        let logsLimit = 100;
+
+        // Проверка админа при загрузке
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = 
+            AuthHelper.updateNavigation();
+
+            if (!AuthHelper.isAdmin()) {
+                Utils.showToast('Доступ запрещен. Только для администраторов.', 'error');
+                setTimeout(() => window.location.href = '/dashboard', 2000);
+                return;
+            }
+
+            loadSystemLogs();
+        });
+
+        // Запуск скрапера
+        async function runScraper() {
+            const articleInput = document.getElementById('scraper-article');
+            const btn = document.getElementById('run-scraper-btn');
+            const article = articleInput.value.trim();
+
+            if (!article || parseInt(article) <= 0) {
+                Utils.showToast('Введите корректный артикул', 'error');
+                return;
+            }
+
+            try {
+                Utils.showLoading(btn);
+
+                const result = await api.runScraper(parseInt(article));
+
+                Utils.showToast(result.message || 'Скрапер запущен', 'success');
+                articleInput.value = '';
+                loadSystemLogs();
+            } catch (error) {
+                Utils.showToast('Ошибка: ' + error.message, 'error');
+            } finally {
+                Utils.hideLoading(btn);
+            }
+        }
+
+        // Переобучение модели
+        async function trainModel() {
+            const btn = document.getElementById('train-model-btn');
+
+            if (!confirm('Запустить переобучение ML-модели? Это может занять несколько минут.')) {
+                return;
+            }
+
+            try {
+                Utils.showLoading(btn);
+
+                const result = await api.trainModel();
+
+                Utils.showToast(result.message || 'Обучение запущено', 'success');
+                loadSystemLogs();
+            } catch (error) {
+                Utils.showToast('Ошибка: ' + error.message, 'error');
+            } finally {
+                Utils.hideLoading(btn);
+            }
+        }
+
+        // Запуск прогноза
+        async function runForecast() {
+            const btn = document.getElementById('run-forecast-btn');
+
+            try {
+                Utils.showLoading(btn);
+
+                const result = await api.runForecast();
+
+                Utils.showToast(result.message || 'Прогноз запущен', 'success');
+                loadSystemLogs();
+            } catch (error) {
+                Utils.showToast('Ошибка: ' + error.message, 'error');
+            } finally {
+                Utils.hideLoading(btn);
+            }
+        }
+
+        // Загрузка системных логов
+        async function loadSystemLogs() {
+            const taskName = document.getElementById('log-task-filter').value;
+            const tbody = document.getElementById('logs-table-body');
+
+            try {
+                const logs = await api.getSystemLogs({ limit: logsLimit, task_name: taskName });
+
+                if (!logs || logs.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="py-8 text-center text-gray-400">Нет логов</td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = logs.map(log => `
+                    <tr class="border-b border-brand-grey-border hover:bg-brand-blue-light/10 transition-colors">
+                        <td class="py-3 px-4 text-sm text-gray-600">#${log.id}</td>
+                        <td class="py-3 px-4 text-sm font-medium">${getTaskName(log.task_name)}</td>
+                        <td class="py-3 px-4 text-sm">
+                            <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(log.status)}">
+                                ${log.status}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 text-sm text-gray-600 truncate max-w-xs">${log.message || '—'}</td>
+                        <td class="py-3 px-4 text-sm text-gray-500">${Utils.formatDateTime(log.created_at)}</td>
+                    </tr>
+                `).join('');
+
+                // Обновление времени последнего обновления
+                document.getElementById('last-update').textContent = Utils.formatDateTime(new Date().toISOString());
+            } catch (error) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="py-8 text-center text-red-400">Ошибка загрузки: ${error.message}</td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Загрузка еще логов
+        function loadMoreLogs() {
+            logsLimit += 100;
+            loadSystemLogs();
+        }
+
+        // Название задачи
+        function getTaskName(taskName) {
+            const names = {
+                'scraper': '🔄 Скрапер',
+                'ml_train': '🤖 ML Обучение',
+                'ml_forecast': '🔮 ML Прогноз',
+            };
+            return names[taskName] || taskName || '—';
+        }
+
+        // Класс статуса
+        function getStatusClass(status) {
+            const classes = {
+                'success': 'bg-green-100 text-green-700',
+                'error': 'bg-red-100 text-red-700',
+                'pending': 'bg-yellow-100 text-yellow-700',
+                'running': 'bg-blue-100 text-blue-700',
+            };
+            return classes[status] || 'bg-gray-100 text-gray-700';
+        }
+    </script>
+</body>
+</html>

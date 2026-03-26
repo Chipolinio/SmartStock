@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.schemas.Product import ProductCreate, ProductUpdate, ProductResponse
+from src.db.schemas.Product import ProductCreate, ProductUpdate, ProductResponse, ProductDetailedResponse
 from src.db.repositories import ProductRepositories as ProductRepo
 from src.db.repositories import UserFavoriteRepositories as UserFavoriteRepo
 from src.db.schemas.UserFavorite import UserFavoriteCreate
@@ -52,6 +52,45 @@ async def get_product_by_id(product_id: int, session: AsyncSession):
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     product_data = ProductResponse.model_validate(product_from_db)
     return product_data
+
+
+async def get_product_detailed(product_id: int, session: AsyncSession) -> ProductDetailedResponse:
+    """
+    Получить полную информацию о товаре для страницы аналитики.
+    Собирает данные из репозитория и возвращает через схему.
+    """
+    # Базовая информация
+    product_from_db = await ProductRepo.read_product(
+        product_id=product_id,
+        session=session
+    )
+    if not product_from_db:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    
+    # Статистика
+    stats = await ProductRepo.get_product_detailed_stats(product_id, session)
+    
+    # Собираем полный ответ через схему
+    return ProductDetailedResponse(
+        id=product_from_db.id,
+        product_id=product_from_db.product_id,
+        name=product_from_db.name,
+        brand=product_from_db.brand,
+        subject=product_from_db.subject,
+        entity=product_from_db.entity,
+        article=product_from_db.product_id,  # Используем product_id как article
+        price=stats.get("price"),
+        stock=stats.get("stock"),
+        avg_daily_sales=stats.get("avg_daily_sales"),
+        days_to_oos=stats.get("days_to_oos"),
+        rating=stats.get("rating"),
+        reviews_count=stats.get("reviews_count"),
+        questions_count=0,  # Пока нет данных в БД
+        likes=0,  # Пока нет данных в БД
+        total_sales=stats.get("total_sales"),
+        total_revenue=stats.get("total_revenue")
+    )
 
 
 async def get_products_filter(

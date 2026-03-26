@@ -12,7 +12,8 @@ from src.db.repositories.AnalyticsRepository import (
     get_top_products_by_revenue as repo_get_top_products_by_revenue,
     get_top_products_by_sales as repo_get_top_products_by_sales,
     get_products_rating as repo_get_products_rating,
-    get_dashboard_kpi as repo_get_dashboard_kpi
+    get_dashboard_kpi as repo_get_dashboard_kpi,
+    get_low_stock as repo_get_low_stock,
 )
 from src.db.schemas.Analytics import (
     DashboardBaseRequest,
@@ -26,6 +27,7 @@ from src.db.schemas.DashboardMetric import (
     TopProductsBySalesResponse,
     ProductsRatingResponse,
     DashboardKPIResponse,
+    LowStockResponse,
 )
 from src.db.schemas.Forecast import (
     ProductForecastsResponse,
@@ -49,11 +51,13 @@ async def get_sales_dynamics(
             product_id=request.product_id,
             days=request.days
         )
-    
-    # Если product_id не указан, возвращаем ошибку
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="product_id is required for sales dynamics"
+
+    # Если product_id не указан, возвращаем агрегированные данные по всем товарам пользователя
+    return await repo_get_sales_history(
+        session=session,
+        product_id=None,  # Все товары
+        days=request.days,
+        user_id=user_id  # Только товары пользователя
     )
 
 
@@ -69,10 +73,13 @@ async def get_stock_dynamics(
             product_id=request.product_id,
             days=request.days
         )
-    
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="product_id is required for stock dynamics"
+
+    # Если product_id не указан, возвращаем агрегированные данные по всем товарам пользователя
+    return await repo_get_stock_dynamics(
+        session=session,
+        product_id=None,  # Все товары
+        days=request.days,
+        user_id=user_id  # Только товары пользователя
     )
 
 
@@ -157,6 +164,19 @@ async def get_dashboard_kpi(
         session=session,
         user_id=user_id,
         days=request.days
+    )
+
+
+async def get_low_stock(
+    session: AsyncSession,
+    user_id: int,
+    limit: int = 10
+) -> LowStockResponse:
+    """Получить товары с низким остатком."""
+    return await repo_get_low_stock(
+        session=session,
+        user_id=user_id,
+        limit=limit
     )
 
 

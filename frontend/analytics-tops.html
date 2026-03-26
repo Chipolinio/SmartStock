@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - Топы товаров</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-dark': '#070F26',
+                        'brand-blue': '#123273',
+                        'brand-light-bg': '#F3F6FD',
+                        'brand-blue-light': '#E4E9FC',
+                        'brand-grey-border': '#F2F2F2',
+                        'brand-white': '#FFFFFF',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-brand-light-bg min-h-screen text-brand-dark">
+    <!-- Боковая панель -->
+    <nav class="sidebar">
+        <h1 class="sidebar-logo">SmartStock</h1>
+        <ul class="space-y-2">
+            <li>
+                <a href="/dashboard" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 Дашборд
+                </a>
+            </li>
+            <li>
+                <a href="/favorites" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    ❤️ Избранное
+                </a>
+            </li>
+            <li>
+                <a href="/products" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏷️ Товары
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-sales" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📈 Аналитика продаж
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-stock" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📦 Остатки
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-abc" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔤 ABC-анализ
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-xyz" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 XYZ-анализ
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-tops" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏆 Топы
+                </a>
+            </li>
+            <li>
+                <a href="/forecasts" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔮 Прогнозы
+                </a>
+            </li>
+            <li>
+                <a href="/telegram" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📱 Telegram
+                </a>
+            </li>
+            <li>
+                <a href="/profile" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    👤 Профиль
+                </a>
+            </li>
+            <li>
+                <a href="/admin" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors hidden" data-requires-admin>
+                    ⚙️ Админка
+                </a>
+            </li>
+        </ul>
+        <div class="absolute bottom-4 left-4 right-4">
+            <div class="mb-2 text-sm text-gray-500 truncate" data-user-info></div>
+            <button
+                onclick="AuthHelper.logout()"
+                class="w-full p-3 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+            >
+                Выйти
+            </button>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <main class="ml-64 p-8">
+        <!-- Заголовок -->
+        <header class="mb-8">
+            <h2 class="text-3xl font-bold text-brand-dark">Топы товаров</h2>
+            <p class="text-gray-600 mt-1">Рейтинги товаров по различным метрикам</p>
+        </header>
+
+        <!-- Фильтры -->
+        <div class="card mb-8 fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Период (дней)</label>
+                    <select
+                        id="filter-days"
+                        class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                    >
+                        <option value="7">7 дней</option>
+                        <option value="14">14 дней</option>
+                        <option value="30" selected>30 дней</option>
+                        <option value="90">90 дней</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Бренд</label>
+                    <input
+                        type="text"
+                        id="filter-brand"
+                        class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                        placeholder="Например: Nike"
+                    >
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Категория</label>
+                    <input
+                        type="text"
+                        id="filter-subject"
+                        class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                        placeholder="Например: Обувь"
+                    >
+                </div>
+                <div class="flex items-end">
+                    <button
+                        onclick="applyFilters()"
+                        class="w-full px-6 py-2 bg-brand-blue text-white rounded-lg font-semibold hover:bg-brand-blue/90 transition-colors"
+                    >
+                        Применить
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладки -->
+        <div class="tabs mb-8">
+            <div class="tab active" data-tab="revenue">💰 По выручке</div>
+            <div class="tab" data-tab="sales">📦 По продажам</div>
+            <div class="tab" data-tab="rating">⭐ По рейтингу</div>
+        </div>
+
+        <!-- Контент вкладок -->
+        <div id="tab-content">
+            <!-- По выручке -->
+            <div class="tab-panel active" data-panel="revenue">
+                <div class="card fade-in">
+                    <h3 class="text-lg font-bold mb-4">Топ товаров по выручке</h3>
+                    <div class="overflow-x-auto">
+                        <table class="data-table w-full">
+                            <thead>
+                                <tr>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">#</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Товар</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Артикул</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Выручка</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Продажи</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="revenue-table-body">
+                                <tr>
+                                    <td colspan="6" class="py-8 text-center text-gray-400">Загрузка данных...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- По продажам -->
+            <div class="tab-panel hidden" data-panel="sales">
+                <div class="card fade-in">
+                    <h3 class="text-lg font-bold mb-4">Топ товаров по продажам</h3>
+                    <div class="overflow-x-auto">
+                        <table class="data-table w-full">
+                            <thead>
+                                <tr>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">#</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Товар</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Артикул</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Продажи (шт)</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Выручка</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sales-table-body">
+                                <tr>
+                                    <td colspan="6" class="py-8 text-center text-gray-400">Загрузка данных...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- По рейтингу -->
+            <div class="tab-panel hidden" data-panel="rating">
+                <div class="card fade-in">
+                    <h3 class="text-lg font-bold mb-4">Топ товаров по рейтингу</h3>
+                    <div class="overflow-x-auto">
+                        <table class="data-table w-full">
+                            <thead>
+                                <tr>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">#</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Товар</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Артикул</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Рейтинг</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Отзывов</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rating-table-body">
+                                <tr>
+                                    <td colspan="6" class="py-8 text-center text-gray-400">Загрузка данных...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/api-client.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script>
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', async () => {
+            AuthHelper.updateNavigation();
+            setActiveNavItem();  // Подсвечиваем активный пункт меню
+            initTabs();
+            loadTops();
+        });
+
+        // Подсветка активного пункта меню
+        function setActiveNavItem() {
+            const currentPath = window.location.pathname.replace(/\/$/, '');  // Убираем trailing slash
+            document.querySelectorAll('.sidebar a').forEach(link => {
+                link.classList.remove('bg-brand-blue', 'text-white');
+                link.classList.add('hover:bg-brand-blue-light', 'text-brand-blue');
+                
+                const linkPath = link.getAttribute('href').replace(/\/$/, '');  // Убираем trailing slash
+                if (linkPath === currentPath) {
+                    link.classList.remove('hover:bg-brand-blue-light', 'text-brand-blue');
+                    link.classList.add('bg-brand-blue', 'text-white');
+                }
+            });
+        }
+
+        // Инициализация вкладок
+        function initTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabName = tab.dataset.tab;
+
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    document.querySelectorAll('.tab-panel').forEach(panel => {
+                        panel.classList.add('hidden');
+                        if (panel.dataset.panel === tabName) {
+                            panel.classList.remove('hidden');
+                        }
+                    });
+                });
+            });
+        }
+
+        // Применение фильтров
+        function applyFilters() {
+            loadTops();
+        }
+
+        // Загрузка топов
+        async function loadTops() {
+            const days = parseInt(document.getElementById('filter-days').value);
+            const brand = document.getElementById('filter-brand').value.trim();
+            const subject = document.getElementById('filter-subject').value.trim();
+
+            const params = { days, limit: 20 };
+            if (brand) params.brand = brand;
+            if (subject) params.subject = subject;
+
+            try {
+                // Топ по выручке
+                const revenueData = await api.getTopProductsByRevenue(params);
+                renderRevenueTable(revenueData);
+
+                // Топ по продажам
+                const salesData = await api.getTopProductsBySales(params);
+                renderSalesTable(salesData);
+
+                // Топ по рейтингу
+                const ratingData = await api.getProductsRating(params);
+                renderRatingTable(ratingData);
+
+            } catch (error) {
+                Utils.showToast('Ошибка загрузки: ' + error.message, 'error');
+            }
+        }
+
+        // Рендеринг таблицы по выручке
+        function renderRevenueTable(products) {
+            const tbody = document.getElementById('revenue-table-body');
+            
+            // Бэкенд возвращает { data: [{product_id, product_name, total_revenue, total_sales, rank}, ...] }
+            const productsData = products.data || products || [];
+
+            if (!productsData || productsData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-8 text-center text-gray-400">Нет данных</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = productsData.map((product, index) => `
+                <tr class="border-b border-brand-grey-border hover:bg-brand-blue-light/10 transition-colors">
+                    <td class="py-3 px-4 text-sm font-medium">
+                        <span class="w-8 h-8 inline-flex items-center justify-center rounded-full ${getRankClass(index)}">
+                            ${product.rank || index + 1}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-sm font-medium truncate max-w-xs">
+                        ${product.product_name || product.name || `Товар ${product.product_id}`}
+                    </td>
+                    <td class="py-3 px-4 text-sm text-gray-600">${product.product_id || '—'}</td>
+                    <td class="py-3 px-4 text-sm font-bold text-brand-blue">
+                        ${Utils.formatCurrency(product.total_revenue || 0)}
+                    </td>
+                    <td class="py-3 px-4 text-sm">${product.total_sales || 0} шт.</td>
+                    <td class="py-3 px-4 text-sm">
+                        <a
+                            href="/product_analytics?id=${product.product_id}"
+                            class="text-brand-blue hover:underline font-medium"
+                        >
+                            Аналитика
+                        </a>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Рендеринг таблицы по продажам
+        function renderSalesTable(products) {
+            const tbody = document.getElementById('sales-table-body');
+
+            // Бэкенд возвращает { data: [{product_id, product_name, total_revenue, total_sales, rank}, ...] }
+            const productsData = products.data || products || [];
+
+            if (!productsData || productsData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-8 text-center text-gray-400">Нет данных</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = productsData.map((product, index) => `
+                <tr class="border-b border-brand-grey-border hover:bg-brand-blue-light/10 transition-colors">
+                    <td class="py-3 px-4 text-sm font-medium">
+                        <span class="w-8 h-8 inline-flex items-center justify-center rounded-full ${getRankClass(index)}">
+                            ${product.rank || index + 1}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-sm font-medium truncate max-w-xs">
+                        ${product.product_name || product.name || `Товар ${product.product_id}`}
+                    </td>
+                    <td class="py-3 px-4 text-sm text-gray-600">${product.product_id || '—'}</td>
+                    <td class="py-3 px-4 text-sm font-bold text-brand-dark">
+                        ${product.total_sales || 0} шт.
+                    </td>
+                    <td class="py-3 px-4 text-sm text-brand-blue">
+                        ${Utils.formatCurrency(product.total_revenue || 0)}
+                    </td>
+                    <td class="py-3 px-4 text-sm">
+                        <a
+                            href="/product_analytics?id=${product.product_id}"
+                            class="text-brand-blue hover:underline font-medium"
+                        >
+                            Аналитика
+                        </a>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Рендеринг таблицы по рейтингу
+        function renderRatingTable(products) {
+            const tbody = document.getElementById('rating-table-body');
+            
+            // Бэкенд возвращает { data: [{product_id, product_name, avg_rating, feedbacks_count, rank}, ...] }
+            const productsData = products.data || products || [];
+
+            if (!productsData || productsData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-8 text-center text-gray-400">Нет данных</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = productsData.map((product, index) => `
+                <tr class="border-b border-brand-grey-border hover:bg-brand-blue-light/10 transition-colors">
+                    <td class="py-3 px-4 text-sm font-medium">
+                        <span class="w-8 h-8 inline-flex items-center justify-center rounded-full ${getRankClass(index)}">
+                            ${product.rank || index + 1}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-sm font-medium truncate max-w-xs">
+                        ${product.product_name || product.name || `Товар ${product.product_id}`}
+                    </td>
+                    <td class="py-3 px-4 text-sm text-gray-600">${product.product_id || '—'}</td>
+                    <td class="py-3 px-4 text-sm font-bold">
+                        ${'⭐'.repeat(Math.round(product.avg_rating || 0))}
+                        <span class="text-brand-blue">${(product.avg_rating || 0).toFixed(1)}</span>
+                    </td>
+                    <td class="py-3 px-4 text-sm">${product.feedbacks_count || 0} отзывов</td>
+                    <td class="py-3 px-4 text-sm">
+                        <a
+                            href="/product_analytics?id=${product.product_id}"
+                            class="text-brand-blue hover:underline font-medium"
+                        >
+                            Аналитика
+                        </a>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Утилиты
+        function getRankClass(index) {
+            if (index === 0) return 'bg-yellow-400 text-white font-bold';
+            if (index === 1) return 'bg-gray-300 text-white font-bold';
+            if (index === 2) return 'bg-amber-600 text-white font-bold';
+            return 'bg-brand-blue-light text-brand-blue';
+        }
+    </script>
+</body>
+</html>

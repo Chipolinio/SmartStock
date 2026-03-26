@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - Прогнозы</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-dark': '#070F26',
+                        'brand-blue': '#123273',
+                        'brand-light-bg': '#F3F6FD',
+                        'brand-blue-light': '#E4E9FC',
+                        'brand-grey-border': '#F2F2F2',
+                        'brand-white': '#FFFFFF',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-brand-light-bg min-h-screen text-brand-dark">
+    <!-- Боковая панель -->
+    <nav class="sidebar">
+        <h1 class="sidebar-logo">SmartStock</h1>
+        <ul class="space-y-2">
+            <li>
+                <a href="/dashboard" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 Дашборд
+                </a>
+            </li>
+            <li>
+                <a href="/favorites" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    ❤️ Избранное
+                </a>
+            </li>
+            <li>
+                <a href="/products" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏷️ Товары
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-sales" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📈 Аналитика
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-stock" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📦 Остатки
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-abc" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔤 ABC
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-xyz" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 XYZ
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-tops" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏆 Топы
+                </a>
+            </li>
+            <li>
+                <a href="/forecasts" class="block p-3 bg-brand-blue rounded-lg text-white font-medium" data-requires-user>
+                    🔮 Прогнозы
+                </a>
+            </li>
+            <li>
+                <a href="/telegram" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📱 Telegram
+                </a>
+            </li>
+            <li>
+                <a href="/profile" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    👤 Профиль
+                </a>
+            </li>
+            <li>
+                <a href="/admin" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors hidden" data-requires-admin>
+                    ⚙️ Админка
+                </a>
+            </li>
+        </ul>
+        <div class="absolute bottom-4 left-4 right-4">
+            <div class="mb-2 text-sm text-gray-500 truncate" data-user-info></div>
+            <button
+                onclick="AuthHelper.logout()"
+                class="w-full p-3 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+            >
+                Выйти
+            </button>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <main class="ml-64 p-8">
+        <!-- Заголовок -->
+        <header class="mb-8">
+            <h2 class="text-3xl font-bold text-brand-dark">Прогнозы продаж</h2>
+            <p class="text-gray-600 mt-1">ML-прогнозы для избранных товаров</p>
+        </header>
+
+        <!-- Сводка прогнозов -->
+        <div class="kpi-grid mb-8">
+            <div class="kpi-card">
+                <p class="kpi-label">Товаров с прогнозом</p>
+                <p class="kpi-value" id="forecast-products-count">—</p>
+                <p class="kpi-delta">из избранных</p>
+            </div>
+            <div class="kpi-card">
+                <p class="kpi-label">Прогноз выручки</p>
+                <p class="kpi-value text-brand-blue" id="forecast-revenue">—</p>
+                <p class="kpi-delta">на следующий период</p>
+            </div>
+            <div class="kpi-card">
+                <p class="kpi-label">Требуют внимания</p>
+                <p class="kpi-value text-red-500" id="forecast-alerts">—</p>
+                <p class="kpi-delta">риск OOS</p>
+            </div>
+            <div class="kpi-card">
+                <p class="kpi-label">Точность модели</p>
+                <p class="kpi-value text-green-500" id="forecast-accuracy">—</p>
+                <p class="kpi-delta">MAPE</p>
+            </div>
+        </div>
+
+        <!-- Таблица прогнозов -->
+        <div class="card fade-in mb-8">
+            <div class="flex-between mb-4">
+                <h3 class="text-lg font-bold">📊 Прогнозы по товарам</h3>
+                <button
+                    onclick="loadForecasts()"
+                    class="px-4 py-2 bg-brand-blue text-white rounded-lg hover:bg-brand-blue/90 transition-colors text-sm font-medium"
+                >
+                    Обновить
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="data-table w-full">
+                    <thead>
+                        <tr>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Товар</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Артикул</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Прогноз продаж</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Прогноз выручки</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Дней до OOS</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Статус</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="forecasts-table-body">
+                        <tr>
+                            <td colspan="7" class="py-8 text-center text-gray-400">Загрузка прогнозов...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- График прогнозов -->
+        <div class="card fade-in">
+            <h3 class="text-lg font-bold mb-4">📈 Динамика прогнозов</h3>
+            <div class="chart-container" style="height: 400px;">
+                <canvas id="forecastChart"></canvas>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/api-client.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script>
+        let forecastChartInstance = null;
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', async () => {
+            AuthHelper.updateNavigation();
+            setActiveNavItem();  // Подсвечиваем активный пункт меню
+            loadForecasts();
+        });
+
+        // Подсветка активного пункта меню
+        function setActiveNavItem() {
+            const currentPath = window.location.pathname.replace(/\/$/, '');  // Убираем trailing slash
+            document.querySelectorAll('.sidebar a').forEach(link => {
+                link.classList.remove('bg-brand-blue', 'text-white');
+                link.classList.add('hover:bg-brand-blue-light', 'text-brand-blue');
+                
+                const linkPath = link.getAttribute('href').replace(/\/$/, '');  // Убираем trailing slash
+                if (linkPath === currentPath) {
+                    link.classList.remove('hover:bg-brand-blue-light', 'text-brand-blue');
+                    link.classList.add('bg-brand-blue', 'text-white');
+                }
+            });
+        }
+
+        // Загрузка прогнозов
+        async function loadForecasts() {
+            try {
+                // Сводка
+                const summary = await api.getForecastSummary();
+                renderForecastSummary(summary);
+
+                // Детальные прогнозы
+                const forecasts = await api.getProductForecasts();
+                renderForecastsTable(forecasts);
+                renderForecastChart(forecasts);
+
+            } catch (error) {
+                Utils.showToast('Ошибка загрузки: ' + error.message, 'error');
+                document.getElementById('forecasts-table-body').innerHTML = `
+                    <tr>
+                        <td colspan="7" class="py-8 text-center text-red-400">Ошибка: ${error.message}</td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Рендеринг сводки
+        function renderForecastSummary(summary) {
+            // Бэкенд возвращает: total_products, total_predicted_revenue, oos_risk_count
+            document.getElementById('forecast-products-count').textContent = summary.total_products || 0;
+            document.getElementById('forecast-revenue').textContent = Utils.formatCurrency(summary.total_predicted_revenue || 0);
+            document.getElementById('forecast-alerts').textContent = summary.oos_risk_count || 0;
+            document.getElementById('forecast-accuracy').textContent = (summary.accuracy || 0) + '%';
+        }
+
+        // Рендеринг таблицы прогнозов
+        function renderForecastsTable(forecasts) {
+            const tbody = document.getElementById('forecasts-table-body');
+            
+            // Бэкенд возвращает { data: [{product_id, product_name, latest_prediction, ...}, ...] }
+            const forecastsData = forecasts.data || forecasts || [];
+
+            if (!forecastsData || forecastsData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="py-8 text-center text-gray-400">Нет данных прогнозов</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = forecastsData.map(item => {
+                const daysToOOS = item.latest_prediction?.days_until_out_of_stock;
+                const predictedSales = item.latest_prediction?.sales_next_day || 0;
+                const predictedRevenue = predictedSales * 1000; // Заглушка, нужна цена
+                const status = getForecastStatus(daysToOOS);
+                const displayDaysToOOS = daysToOOS !== undefined ? Math.round(daysToOOS) : '∞';
+
+                return `
+                    <tr class="border-b border-brand-grey-border hover:bg-brand-blue-light/10 transition-colors">
+                        <td class="py-3 px-4 text-sm font-medium truncate max-w-xs">
+                            ${item.product_name || `Товар ${item.product_id}`}
+                        </td>
+                        <td class="py-3 px-4 text-sm text-gray-600">${item.product_id || '—'}</td>
+                        <td class="py-3 px-4 text-sm font-bold text-brand-dark">${Math.round(predictedSales)} шт.</td>
+                        <td class="py-3 px-4 text-sm font-bold text-brand-blue">${Utils.formatCurrency(predictedRevenue)}</td>
+                        <td class="py-3 px-4 text-sm">
+                            <span class="${getDaysToOOSClass(displayDaysToOOS)}">${displayDaysToOOS}</span>
+                        </td>
+                        <td class="py-3 px-4 text-sm">
+                            <span class="px-2 py-1 rounded text-xs font-medium ${status.class}">
+                                ${status.text}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 text-sm">
+                            <a
+                                href="/product_analytics?id=${item.product_id}"
+                                class="text-brand-blue hover:underline font-medium"
+                            >
+                                Аналитика
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Рендеринг графика
+        function renderForecastChart(forecasts) {
+            const ctx = document.getElementById('forecastChart').getContext('2d');
+
+            if (forecastChartInstance) {
+                forecastChartInstance.destroy();
+            }
+
+            // Бэкенд возвращает { data: [{product_id, product_name, forecast_history: [{dt, predicted_sales}]}, ...] }
+            const forecastsData = forecasts.data || forecasts || [];
+            
+            if (!forecastsData || forecastsData.length === 0) {
+                return;
+            }
+
+            // Собираем всю историю прогнозов по всем товарам
+            const allHistory = [];
+            forecastsData.forEach(product => {
+                const history = product.forecast_history || [];
+                history.forEach(entry => {
+                    allHistory.push({
+                        dt: entry.dt,
+                        predicted_sales: entry.predicted_sales,
+                        product_id: product.product_id
+                    });
+                });
+            });
+
+            // Группировка по датам
+            const grouped = {};
+            allHistory.forEach(item => {
+                if (!grouped[item.dt]) {
+                    grouped[item.dt] = { sales: 0, revenue: 0 };
+                }
+                grouped[item.dt].sales += item.predicted_sales || 0;
+                // Для выручки нужна цена, пока заглушка
+                grouped[item.dt].revenue += (item.predicted_sales || 0) * 1000;
+            });
+
+            const labels = Object.keys(grouped).sort();
+            const salesData = labels.map(dt => grouped[dt].sales);
+            const revenueData = labels.map(dt => grouped[dt].revenue);
+
+            forecastChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels.map(d => {
+                        const date = new Date(d);
+                        return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
+                    }),
+                    datasets: [
+                        {
+                            label: 'Прогноз продаж (шт)',
+                            data: salesData,
+                            borderColor: '#123273',
+                            backgroundColor: 'rgba(18, 50, 115, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                        },
+                        {
+                            label: 'Прогноз выручки (₽)',
+                            data: revenueData,
+                            borderColor: '#E4E9FC',
+                            backgroundColor: 'rgba(228, 233, 252, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            yAxisID: 'y1',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#F2F2F2' },
+                            position: 'left',
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            grid: { display: false },
+                            position: 'right',
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Утилиты
+        function getForecastStatus(daysToOOS) {
+            if (daysToOOS === undefined || daysToOOS === null || daysToOOS === '∞') {
+                return { class: 'bg-green-100 text-green-700', text: 'OK' };
+            }
+            if (daysToOOS <= 7) {
+                return { class: 'bg-red-100 text-red-700', text: 'Критично' };
+            }
+            if (daysToOOS <= 14) {
+                return { class: 'bg-yellow-100 text-yellow-700', text: 'Внимание' };
+            }
+            return { class: 'bg-green-100 text-green-700', text: 'OK' };
+        }
+
+        function getDaysToOOSClass(days) {
+            if (days === '∞' || days === undefined || days === null) return 'text-gray-500 font-medium';
+            if (days <= 7) return 'text-red-500 font-bold';
+            if (days <= 14) return 'text-yellow-500 font-medium';
+            return 'text-green-500 font-medium';
+        }
+    </script>
+</body>
+</html>

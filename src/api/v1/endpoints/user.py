@@ -10,8 +10,8 @@ from src.db.schemas.UserFavorite import (
     UserFavoriteResponse,
     UserFavoriteBatchRequest
 )
-from src.db.schemas.Product import ProductResponse
-from src.db.schemas.User import UserResponse, UserUpdate
+from src.db.schemas.Product import ProductResponse, ProductWithDetailsResponse
+from src.db.schemas.User import UserUpdate, UserProfileResponse
 from src.services import UserService as UserServiceModule
 from src.services import ProductService as ProductServiceModule
 from src.utils.dependencies import get_user
@@ -19,13 +19,13 @@ from src.utils.dependencies import get_user
 router = APIRouter()
 
 
-@router.get("/favorites", response_model=List[ProductResponse])
+@router.get("/favorites", response_model=List[ProductWithDetailsResponse])
 async def read_fav_products(
     session: AsyncSession = Depends(get_db),
     user_data: dict = Depends(get_user)
 ):
-    """Получить список избранных товаров."""
-    return await UserServiceModule.read_user_favorites(
+    """Получить список избранных товаров с ценой и остатком."""
+    return await UserServiceModule.read_user_favorites_with_details(
         internal_id=user_data["user_id"],
         session=session
     )
@@ -119,41 +119,38 @@ async def delete_fav_product(
 # ПРОФИЛЬ И TELEGRAM (максимально просто)
 # =============================================================================
 
-@router.get("/profile", response_model=UserResponse)
+@router.get("/profile", response_model=UserProfileResponse)
 async def get_profile(
     session: AsyncSession = Depends(get_db),
     user_data: dict = Depends(get_user)
 ):
     """Получить профиль текущего пользователя."""
-    from src.db.repositories.UserRepositories import read_user_by_internal_id
-    user = await read_user_by_internal_id(user_data["user_id"], session)
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-    return UserResponse.model_validate(user)
+    user = await UserServiceModule._get_db_user_by_internal_id(user_data["user_id"], session)
+    return UserProfileResponse(email=user.email)
 
 
-@router.patch("/profile", response_model=UserResponse)
+@router.patch("/profile", response_model=UserProfileResponse)
 async def update_profile(
     user_update: UserUpdate,
     session: AsyncSession = Depends(get_db),
     user_data: dict = Depends(get_user)
 ):
-    """Обновить профиль текущего пользователя."""
-    from src.db.repositories.UserRepositories import update_user
-
-    # Разрешаем обновлять только user_id (Telegram ID)
+    """Обновить профиль текущего пользователя (email, password)."""
     update_data = user_update.model_dump(exclude_unset=True)
-    if "email" in update_data or "role" in update_data or "is_pro" in update_data or "is_active" in update_data:
-        raise HTTPException(status_code=403, detail="Нельзя обновлять это поле")
 
     if not update_data:
         raise HTTPException(status_code=400, detail="Нет данных для обновления")
 
-    user = await update_user(user_data["user_id"], update_data, session)
+    # Если указан пароль - хешируем его перед сохранением
+    if "password" in update_data:
+        from src.utils.security import get_password_hash
+        update_data["password_hash"] = get_password_hash(update_data.pop("password"))
+
+    user = await UserServiceModule.update_user(user_data["user_id"], update_data, session)
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    return UserResponse.model_validate(user)
+    return UserProfileResponse(email=user.email)
 
 
 @router.get("/telegram/info")
@@ -166,17 +163,7 @@ async def get_telegram_info(
 
     Для привязки: отправить боту команду /link <my_user_id>
     """
-    from src.db.repositories.UserRepositories import read_user_by_internal_id
-
-    user = await read_user_by_internal_id(user_data["user_id"], session)
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-
-    return {
-        "telegram_id": user.user_id,
-        "is_linked": user.user_id is not None,
-        "my_user_id": user.id  # Этот ID нужно отправить боту: /link <my_user_id>
-    }
+    return await UserServiceModule.get_telegram_info(user_data["user_id"], session)
 
 
 @router.post("/telegram/link", response_model=dict)
@@ -187,33 +174,12 @@ async def link_telegram(
 ):
     """
     Привязать Telegram к аккаунту (для бота).
-    
+
     Оба параметра в query params:
     - telegram_id: Telegram ID (кто пишет боту)
     - user_id: Внутренний ID пользователя на сайте (к чему привязать)
     """
-    from sqlalchemy import select
-    from src.db.models.User import User
-    
-    # Проверяем, не привязан ли уже этот TG
-    check_stmt = select(User).where(
-        User.user_id == telegram_id,
-        User.id != user_id
-    )
-    check_result = await session.execute(check_stmt)
-    existing = check_result.scalar_one_or_none()
-    
-    if existing:
-        raise HTTPException(
-            status_code=409,
-            detail="Этот Telegram уже привязан к другому аккаунту"
-        )
-    
-    # Привязываем
-    from src.db.repositories.UserRepositories import update_user
-    user = await update_user(user_id, {"user_id": telegram_id}, session)
-    
-    return {"status": "success", "message": "Telegram привязан", "telegram_id": telegram_id}
+    return await UserServiceModule.link_telegram_by_bot(telegram_id, user_id, session)
 
 
 @router.delete("/telegram/unlink", response_model=dict)
@@ -222,10 +188,4 @@ async def unlink_telegram(
     user_data: dict = Depends(get_user)
 ):
     """Отвязать Telegram."""
-    from src.db.repositories.UserRepositories import update_user
-    
-    user = await update_user(user_data["user_id"], {"user_id": None}, session)
-    if not user:
-        raise HTTPException(404, "Пользователь не найден")
-    
-    return {"status": "success", "message": "Telegram отвязан"}
+    return await UserServiceModule.unlink_user_telegram(user_data["user_id"], session)

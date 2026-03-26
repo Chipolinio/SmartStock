@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - Конструктор отчетов</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-dark': '#070F26',
+                        'brand-blue': '#123273',
+                        'brand-light-bg': '#F3F6FD',
+                        'brand-blue-light': '#E4E9FC',
+                        'brand-grey-border': '#F2F2F2',
+                        'brand-white': '#FFFFFF',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-brand-light-bg min-h-screen text-brand-dark">
+    <!-- Боковая панель -->
+    <nav class="sidebar">
+        <h1 class="sidebar-logo">SmartStock</h1>
+        <ul class="space-y-2">
+            <li>
+                <a href="/dashboard" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 Дашборд
+                </a>
+            </li>
+            <li>
+                <a href="/favorites" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    ❤️ Избранное
+                </a>
+            </li>
+            <li>
+                <a href="/products" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏷️ Товары
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-sales" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📈 Аналитика
+                </a>
+            </li>
+            <li>
+                <a href="/forecasts" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔮 Прогнозы
+                </a>
+            </li>
+            <li>
+                <a href="/telegram" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📱 Telegram
+                </a>
+            </li>
+            <li>
+                <a href="/profile" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    👤 Профиль
+                </a>
+            </li>
+            <li>
+                <a href="/admin" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors hidden" data-requires-admin>
+                    ⚙️ Админка
+                </a>
+            </li>
+        </ul>
+        <div class="absolute bottom-4 left-4 right-4">
+            <div class="mb-2 text-sm text-gray-500 truncate" data-user-info></div>
+            <button
+                onclick="AuthHelper.logout()"
+                class="w-full p-3 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+            >
+                Выйти
+            </button>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <main class="ml-64 p-8">
+        <!-- Заголовок -->
+        <header class="mb-8">
+            <h2 class="text-3xl font-bold text-brand-dark">Конструктор отчетов</h2>
+            <p class="text-gray-600 mt-1">Создавайте кастомные отчеты по вашим данным</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Форма конструктора -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Период -->
+                <div class="card fade-in">
+                    <h3 class="text-lg font-bold mb-4">📅 Период</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Дата начала</label>
+                            <input
+                                type="date"
+                                id="date-from"
+                                class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                            >
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Дата окончания</label>
+                            <input
+                                type="date"
+                                id="date-to"
+                                class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Измерения -->
+                <div class="card fade-in">
+                    <h3 class="text-lg font-bold mb-4">📐 Измерения</h3>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="dim-dt" checked class="w-4 h-4 text-brand-blue">
+                            <span class="text-sm">Дата</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="dim-brand" class="w-4 h-4 text-brand-blue">
+                            <span class="text-sm">Бренд</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="dim-subject" class="w-4 h-4 text-brand-blue">
+                            <span class="text-sm">Категория</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="dim-product" class="w-4 h-4 text-brand-blue">
+                            <span class="text-sm">Товар</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Метрики -->
+                <div class="card fade-in">
+                    <h3 class="text-lg font-bold mb-4">📊 Метрики</h3>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="met-revenue" checked class="w-4 h-4 text-brand-blue">
+                            <span class="text-sm">Выручка</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="met-sales" checked class="w-4 h-4 text-brand-blue">
+                            <span class="text-sm">Продажи</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="met-rating" class="w-4 h-4 text-brand-blue">
+                            <span class="text-sm">Рейтинг</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="met-abc" class="w-4 h-4 text-brand-blue">
+                            <span class="text-sm">ABC-анализ</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="met-xyz" class="w-4 h-4 text-brand-blue">
+                            <span class="text-sm">XYZ-анализ</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Фильтры -->
+                <div class="card fade-in">
+                    <h3 class="text-lg font-bold mb-4">🔍 Фильтры</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Бренд</label>
+                            <input
+                                type="text"
+                                id="filter-brand"
+                                class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                                placeholder="Например: Nike"
+                            >
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Категория</label>
+                            <input
+                                type="text"
+                                id="filter-subject"
+                                class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                                placeholder="Например: Обувь"
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Кнопки -->
+                <div class="card fade-in">
+                    <button
+                        onclick="buildReport()"
+                        id="build-btn"
+                        class="w-full py-3 bg-brand-blue text-white rounded-lg font-semibold hover:bg-brand-blue/90 transition-colors mb-3"
+                    >
+                        Построить отчет
+                    </button>
+                    <button
+                        onclick="exportToCSV()"
+                        id="export-btn"
+                        class="w-full py-3 bg-brand-blue-light text-brand-blue rounded-lg font-semibold hover:bg-brand-blue/20 transition-colors"
+                    >
+                        Экспорт в CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Результат -->
+            <div class="lg:col-span-2">
+                <div class="card fade-in">
+                    <div class="flex-between mb-4">
+                        <h3 class="text-lg font-bold">📋 Результат</h3>
+                        <span class="text-sm text-gray-500" id="result-count"></span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="data-table w-full">
+                            <thead id="report-thead">
+                                <tr>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">
+                                        Выберите параметры и нажмите «Построить отчет»
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="report-tbody">
+                                <tr>
+                                    <td class="py-8 text-center text-gray-400">—</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/api-client.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script>
+        let reportData = [];
+        let reportColumns = [];
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', async () => {
+            
+            AuthHelper.updateNavigation();
+
+            // Установка дат по умолчанию (30 дней)
+            const today = new Date();
+            const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+            document.getElementById('date-from').value = thirtyDaysAgo.toISOString().split('T')[0];
+            document.getElementById('date-to').value = today.toISOString().split('T')[0];
+        });
+
+        // Построение отчета
+        async function buildReport() {
+            const buildBtn = document.getElementById('build-btn');
+
+            try {
+                Utils.showLoading(buildBtn);
+
+                // Сбор параметров
+                const dimensions = [];
+                if (document.getElementById('dim-dt').checked) dimensions.push('dt');
+                if (document.getElementById('dim-brand').checked) dimensions.push('brand');
+                if (document.getElementById('dim-subject').checked) dimensions.push('subject');
+                if (document.getElementById('dim-product').checked) dimensions.push('product_id');
+
+                const metrics = [];
+                if (document.getElementById('met-revenue').checked) metrics.push('revenue');
+                if (document.getElementById('met-sales').checked) metrics.push('sales');
+                if (document.getElementById('met-rating').checked) metrics.push('rating');
+                if (document.getElementById('met-abc').checked) metrics.push('abc');
+                if (document.getElementById('met-xyz').checked) metrics.push('xyz');
+
+                const filters = {};
+                const brandFilter = document.getElementById('filter-brand').value.trim();
+                const subjectFilter = document.getElementById('filter-subject').value.trim();
+                if (brandFilter) filters.brand = [brandFilter];
+                if (subjectFilter) filters.subject = [subjectFilter];
+
+                const request = {
+                    date_from: document.getElementById('date-from').value,
+                    date_to: document.getElementById('date-to').value,
+                    dimensions,
+                    metrics,
+                    filters
+                };
+
+                // Запрос к API
+                const response = await api.aggregateAnalytics(request);
+                reportData = response.data || [];
+                reportColumns = response.columns || [];
+
+                renderReport();
+
+            } catch (error) {
+                Utils.showToast('Ошибка: ' + error.message, 'error');
+            } finally {
+                Utils.hideLoading(buildBtn);
+            }
+        }
+
+        // Рендеринг отчета
+        function renderReport() {
+            const thead = document.getElementById('report-thead');
+            const tbody = document.getElementById('report-tbody');
+            const countLabel = document.getElementById('result-count');
+
+            if (!reportData || reportData.length === 0) {
+                thead.innerHTML = '<tr><th class="text-left py-3 px-4">Нет данных</th></tr>';
+                tbody.innerHTML = '<tr><td class="py-8 text-center text-gray-400">—</td></tr>';
+                countLabel.textContent = '';
+                return;
+            }
+
+            // Заголовки
+            const headers = reportColumns.map(col => {
+                const names = {
+                    'dt': 'Дата',
+                    'brand': 'Бренд',
+                    'subject': 'Категория',
+                    'product_id': 'Товар',
+                    'revenue': 'Выручка',
+                    'sales': 'Продажи',
+                    'rating': 'Рейтинг',
+                    'abc': 'ABC',
+                    'xyz': 'XYZ',
+                };
+                return names[col] || col;
+            });
+
+            thead.innerHTML = `
+                <tr>
+                    ${headers.map(h => `<th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">${h}</th>`).join('')}
+                </tr>
+            `;
+
+            // Данные
+            tbody.innerHTML = reportData.map(row => `
+                <tr class="border-b border-brand-grey-border hover:bg-brand-blue-light/10 transition-colors">
+                    ${reportColumns.map(col => {
+                        const value = row[col];
+                        if (col === 'revenue') {
+                            return `<td class="py-3 px-4 text-sm font-bold text-brand-blue">${Utils.formatCurrency(value)}</td>`;
+                        }
+                        if (col === 'abc' || col === 'xyz') {
+                            return `<td class="py-3 px-4 text-sm"><span class="px-2 py-1 rounded text-xs font-medium ${getGroupClass(value)}">${value}</span></td>`;
+                        }
+                        return `<td class="py-3 px-4 text-sm">${value !== null && value !== undefined ? value : '—'}</td>`;
+                    }).join('')}
+                </tr>
+            `).join('');
+
+            countLabel.textContent = `${reportData.length} записей`;
+        }
+
+        // Экспорт в CSV
+        function exportToCSV() {
+            if (!reportData || reportData.length === 0) {
+                Utils.showToast('Нет данных для экспорта', 'error');
+                return;
+            }
+
+            const headers = reportColumns.join(',');
+            const rows = reportData.map(row => {
+                return reportColumns.map(col => {
+                    const value = row[col];
+                    if (typeof value === 'string' && value.includes(',')) {
+                        return `"${value}"`;
+                    }
+                    return value !== null && value !== undefined ? value : '';
+                }).join(',');
+            });
+
+            const csv = [headers, ...rows].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `report_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+
+            Utils.showToast('Отчет экспортирован', 'success');
+        }
+
+        // Утилиты
+        function getGroupClass(group) {
+            if (!group) return 'bg-gray-100 text-gray-700';
+            const classes = {
+                'A': 'bg-brand-blue text-white',
+                'B': 'bg-blue-200 text-brand-blue',
+                'C': 'bg-brand-blue-light text-brand-blue',
+                'X': 'bg-green-100 text-green-700',
+                'Y': 'bg-yellow-100 text-yellow-700',
+                'Z': 'bg-red-100 text-red-700',
+            };
+            return classes[group] || 'bg-gray-100 text-gray-700';
+        }
+    </script>
+</body>
+</html>

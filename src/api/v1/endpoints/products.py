@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
 from src.db.database import get_db
-from src.db.schemas.Product import ProductResponse
+from src.db.schemas.Product import ProductResponse, ProductDetailedResponse
 from src.services import ProductService as ProductServiceModule
 
 router = APIRouter()
@@ -51,7 +51,7 @@ async def get_product(
 ):
     """
     Получить информацию о товаре по ID (артикулу WB).
-    
+
     - **product_id**: артикул товара на маркетплейсе
     """
     try:
@@ -66,3 +66,20 @@ async def get_product(
                 detail=f"Товар с артикулом {product_id} не найден"
             )
         raise
+
+
+@router.get("/{product_id}/detailed", response_model=ProductDetailedResponse)
+async def get_product_detailed(
+    product_id: int,
+    session: AsyncSession = Depends(get_db)
+):
+    """
+    Получить полную информацию о товаре для страницы аналитики.
+    Включает цену, остатки, рейтинг, продажи и другую статистику.
+
+    - **product_id**: артикул товара на маркетплейсе
+    """
+    return await ProductServiceModule.get_product_detailed(
+        product_id=product_id,
+        session=session
+    )

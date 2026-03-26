@@ -18,25 +18,65 @@ from src.db.schemas.DashboardMetric import (
     TopProductEntry, TopProductsByRevenueResponse,
     TopProductsBySalesResponse,
     ProductsRatingEntry, ProductsRatingResponse,
-    DashboardKPIResponse
+    DashboardKPIResponse,
+    LowStockItem, LowStockResponse,
 )
 
 
 async def get_sales_history(
-    product_id: int,
     session: AsyncSession,
-    days: int = 30
+    days: int = 30,
+    product_id: int = None,
+    user_id: int = None
 ) -> SalesHistoryResponse:
     """
     Временной ряд продаж и выручки по дням.
+    Если product_id не указан — агрегируется по всем товарам пользователя.
     """
     start_date = date.today() - timedelta(days=days)
-    
+
+    # Если product_id указан — используем старую логику
+    if product_id:
+        stmt = (
+            select(
+                SalesProxyTS.dt,
+                SalesProxyTS.sales,
+                (SalesProxyTS.sales * PriceTS.price_sale).label("revenue")
+            )
+            .join(
+                PriceTS,
+                and_(
+                    PriceTS.product_id == SalesProxyTS.product_id,
+                    PriceTS.dt == SalesProxyTS.dt
+                )
+            )
+            .where(
+                SalesProxyTS.product_id == product_id,
+                SalesProxyTS.dt >= start_date
+            )
+            .order_by(SalesProxyTS.dt.asc())
+        )
+
+        result = await session.execute(stmt)
+        rows = result.all()
+
+        data = [
+            SalesHistoryEntry(
+                dt=row.dt,
+                sales=row.sales,
+                revenue=float(row.revenue) if row.revenue else 0.0
+            )
+            for row in rows
+        ]
+
+        return SalesHistoryResponse(product_id=product_id, data=data)
+
+    # Если product_id не указан — агрегируем по всем товарам пользователя
     stmt = (
         select(
             SalesProxyTS.dt,
-            SalesProxyTS.sales,
-            (SalesProxyTS.sales * PriceTS.price_sale).label("revenue")
+            func.sum(SalesProxyTS.sales).label("total_sales"),
+            func.sum(SalesProxyTS.sales * PriceTS.price_sale).label("total_revenue")
         )
         .join(
             PriceTS,
@@ -45,56 +85,96 @@ async def get_sales_history(
                 PriceTS.dt == SalesProxyTS.dt
             )
         )
+        .join(
+            UserFavorite,
+            UserFavorite.product_id == SalesProxyTS.product_id
+        )
         .where(
-            SalesProxyTS.product_id == product_id,
+            UserFavorite.user_id == user_id,
             SalesProxyTS.dt >= start_date
         )
+        .group_by(SalesProxyTS.dt)
         .order_by(SalesProxyTS.dt.asc())
     )
-    
+
     result = await session.execute(stmt)
     rows = result.all()
-    
+
     data = [
         SalesHistoryEntry(
             dt=row.dt,
-            sales=row.sales,
-            revenue=float(row.revenue) if row.revenue else 0.0
+            sales=row.total_sales or 0,
+            revenue=float(row.total_revenue) if row.total_revenue else 0.0
         )
         for row in rows
     ]
-    
-    return SalesHistoryResponse(product_id=product_id, data=data)
+
+    return SalesHistoryResponse(product_id=None, data=data)
 
 
 async def get_stock_dynamics(
-    product_id: int,
     session: AsyncSession,
-    days: int = 30
+    days: int = 30,
+    product_id: int = None,
+    user_id: int = None
 ) -> StockDynamicsResponse:
     """
     Временной ряд остатков на складе по дням.
+    Если product_id не указан — агрегируется по всем товарам пользователя.
     """
     start_date = date.today() - timedelta(days=days)
-    
+
+    # Если product_id указан — используем старую логику
+    if product_id:
+        stmt = (
+            select(StockTS.dt, StockTS.quantity)
+            .where(
+                StockTS.product_id == product_id,
+                StockTS.dt >= start_date
+            )
+            .order_by(StockTS.dt.asc())
+        )
+
+        result = await session.execute(stmt)
+        rows = result.all()
+
+        data = [
+            StockDynamicsEntry(dt=row.dt, quantity=row.quantity)
+            for row in rows
+        ]
+
+        return StockDynamicsResponse(product_id=product_id, data=data)
+
+    # Если product_id не указан — агрегируем по всем товарам пользователя
     stmt = (
-        select(StockTS.dt, StockTS.quantity)
+        select(
+            StockTS.dt,
+            func.sum(StockTS.quantity).label("total_quantity")
+        )
+        .join(
+            UserFavorite,
+            UserFavorite.product_id == StockTS.product_id
+        )
         .where(
-            StockTS.product_id == product_id,
+            UserFavorite.user_id == user_id,
             StockTS.dt >= start_date
         )
+        .group_by(StockTS.dt)
         .order_by(StockTS.dt.asc())
     )
-    
+
     result = await session.execute(stmt)
     rows = result.all()
-    
+
     data = [
-        StockDynamicsEntry(dt=row.dt, quantity=row.quantity)
+        StockDynamicsEntry(
+            dt=row.dt,
+            quantity=row.total_quantity or 0
+        )
         for row in rows
     ]
-    
-    return StockDynamicsResponse(product_id=product_id, data=data)
+
+    return StockDynamicsResponse(product_id=None, data=data)
 
 
 async def get_abc_data(
@@ -489,3 +569,91 @@ async def get_dashboard_kpi(
         avg_delivery_days=float(delivery_avg) if delivery_avg else None,
         oos_risk_count=0  # Заглушка, требует доработки подзапроса
     )
+
+
+async def get_low_stock(
+    user_id: int,
+    session: AsyncSession,
+    limit: int = 10
+) -> LowStockResponse:
+    """
+    Получить товары с низким остатком.
+    Критичные: < 7 дней продаж
+    Предупреждение: < 14 дней продаж
+    """
+    # Подзапрос: текущий остаток (последняя запись)
+    latest_stock_subq = (
+        select(
+            StockTS.product_id,
+            StockTS.quantity,
+            StockTS.dt,
+            func.row_number().over(
+                partition_by=StockTS.product_id,
+                order_by=StockTS.dt.desc()
+            ).label("rn")
+        )
+        .where(StockTS.dt >= date.today() - timedelta(days=7))
+        .subquery("latest_stock")
+    )
+
+    # Подзапрос: средние продажи в день за последние 30 дней
+    avg_sales_subq = (
+        select(
+            SalesProxyTS.product_id,
+            func.avg(SalesProxyTS.sales).label("avg_sales")
+        )
+        .where(SalesProxyTS.dt >= date.today() - timedelta(days=30))
+        .group_by(SalesProxyTS.product_id)
+        .subquery("avg_sales")
+    )
+
+    # Основной запрос
+    stmt = (
+        select(
+            Product.product_id,
+            Product.name,
+            latest_stock_subq.c.quantity.label("current_stock"),
+            func.coalesce(avg_sales_subq.c.avg_sales, 0).label("avg_sales"),
+        )
+        .join(latest_stock_subq, latest_stock_subq.c.product_id == Product.product_id)
+        .outerjoin(avg_sales_subq, avg_sales_subq.c.product_id == Product.product_id)
+        .join(UserFavorite, UserFavorite.product_id == Product.product_id)
+        .where(
+            UserFavorite.user_id == user_id,
+            latest_stock_subq.c.rn == 1,  # Только последняя запись
+            func.coalesce(avg_sales_subq.c.avg_sales, 0) > 0  # Только товары с продажами
+        )
+        .order_by(latest_stock_subq.c.quantity.asc())
+        .limit(limit)
+    )
+
+    result = await session.execute(stmt)
+    rows = result.all()
+
+    data = []
+    for row in rows:
+        avg_sales = float(row.avg_sales) if row.avg_sales else 0.0
+        current_stock = row.current_stock or 0
+        days_to_oos = current_stock / avg_sales if avg_sales > 0 else None
+
+        if days_to_oos is not None:
+            if days_to_oos <= 7:
+                status = "critical"
+            elif days_to_oos <= 14:
+                status = "warning"
+            else:
+                status = "ok"
+
+            data.append(
+                LowStockItem(
+                    product_id=row.product_id,
+                    product_name=row.name,
+                    article=str(row.product_id),  # Используем product_id как артикул
+                    current_stock=current_stock,
+                    avg_sales=avg_sales,
+                    days_until_oos=round(days_to_oos, 1) if days_to_oos else None,
+                    status=status
+                )
+            )
+
+    return LowStockResponse(data=data)

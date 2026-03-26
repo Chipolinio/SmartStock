@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - Аналитика товара</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-dark': '#070F26',
+                        'brand-blue': '#123273',
+                        'brand-light-bg': '#F3F6FD',
+                        'brand-blue-light': '#E4E9FC',
+                        'brand-grey-border': '#F2F2F2',
+                        'brand-white': '#FFFFFF',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-brand-light-bg min-h-screen text-brand-dark">
+    <!-- Боковая панель -->
+    <nav class="sidebar">
+        <h1 class="sidebar-logo">SmartStock</h1>
+        <ul class="space-y-2">
+            <li>
+                <a href="/dashboard" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 Дашборд
+                </a>
+            </li>
+            <li>
+                <a href="/favorites" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    ❤️ Избранное
+                </a>
+            </li>
+            <li>
+                <a href="/products" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏷️ Товары
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-sales" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📈 Аналитика
+                </a>
+            </li>
+            <li>
+                <a href="/forecasts" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔮 Прогнозы
+                </a>
+            </li>
+            <li>
+                <a href="/telegram" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📱 Telegram
+                </a>
+            </li>
+            <li>
+                <a href="/profile" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    👤 Профиль
+                </a>
+            </li>
+            <li>
+                <a href="/admin" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors hidden" data-requires-admin>
+                    ⚙️ Админка
+                </a>
+            </li>
+        </ul>
+        <div class="absolute bottom-4 left-4 right-4">
+            <div class="mb-2 text-sm text-gray-500 truncate" data-user-info></div>
+            <button
+                onclick="AuthHelper.logout()"
+                class="w-full p-3 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+            >
+                Выйти
+            </button>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <main class="ml-64 p-8">
+        <!-- Заголовок -->
+        <header class="mb-8">
+            <div class="flex items-center gap-4 mb-2">
+                <a href="javascript:history.back()" class="text-brand-blue hover:text-brand-dark transition-colors font-medium">
+                    ← Назад
+                </a>
+            </div>
+            <h2 class="text-3xl font-bold text-brand-dark" id="product-title">Загрузка...</h2>
+            <p class="text-gray-600 mt-1" id="product-subtitle">Артикул: —</p>
+        </header>
+
+        <!-- KPI карточки товара -->
+        <div id="product-kpi" class="kpi-grid mb-8">
+            <!-- Заполняется динамически -->
+        </div>
+
+        <!-- Вкладки -->
+        <div class="tabs">
+            <div class="tab active" data-tab="sales">📈 Продажи</div>
+            <div class="tab" data-tab="stock">📦 Остатки</div>
+            <div class="tab" data-tab="price">💰 Цены</div>
+            <div class="tab" data-tab="social">⭐ Рейтинг</div>
+            <div class="tab" data-tab="forecast">🔮 Прогноз</div>
+        </div>
+
+        <!-- Контент вкладок -->
+        <div id="tab-content">
+            <!-- Продажи -->
+            <div class="tab-panel active" data-panel="sales">
+                <div class="card fade-in">
+                    <h3 class="text-lg font-bold mb-4">История продаж</h3>
+                    <div class="chart-container">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Остатки -->
+            <div class="tab-panel hidden" data-panel="stock">
+                <div class="card fade-in">
+                    <h3 class="text-lg font-bold mb-4">История остатков</h3>
+                    <div class="chart-container">
+                        <canvas id="stockChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Цены -->
+            <div class="tab-panel hidden" data-panel="price">
+                <div class="card fade-in">
+                    <h3 class="text-lg font-bold mb-4">Динамика цен</h3>
+                    <div class="chart-container">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Соц. данные -->
+            <div class="tab-panel hidden" data-panel="social">
+                <div class="card fade-in">
+                    <h3 class="text-lg font-bold mb-4">Рейтинг и отзывы</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="chart-container">
+                            <canvas id="ratingChart"></canvas>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="bg-brand-light-bg p-4 rounded-lg">
+                                <p class="text-gray-500 text-sm">Текущий рейтинг</p>
+                                <p class="text-2xl font-bold text-brand-blue" id="current-rating">—</p>
+                            </div>
+                            <div class="bg-brand-light-bg p-4 rounded-lg">
+                                <p class="text-gray-500 text-sm">Всего отзывов</p>
+                                <p class="text-2xl font-bold text-brand-dark" id="total-feedbacks">—</p>
+                            </div>
+                            <div class="bg-brand-light-bg p-4 rounded-lg">
+                                <p class="text-gray-500 text-sm">Вопросов</p>
+                                <p class="text-2xl font-bold text-brand-dark" id="total-questions">—</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Прогноз -->
+            <div class="tab-panel hidden" data-panel="forecast">
+                <div class="card fade-in">
+                    <h3 class="text-lg font-bold mb-4">Прогноз продаж</h3>
+                    <div class="chart-container">
+                        <canvas id="forecastChart"></canvas>
+                    </div>
+                    <div id="forecast-alert" class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg hidden">
+                        <p class="text-yellow-700">⚠️ Прогноз еще не сформирован</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Детальная информация -->
+        <div class="card mt-8 fade-in">
+            <h3 class="text-lg font-bold mb-4">📋 Детальная информация</h3>
+            <div id="product-details" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Заполняется динамически -->
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/api-client.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script>
+        let charts = {};
+        let currentProduct = null;
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', async () => {
+            AuthHelper.updateNavigation();
+            setActiveNavItem();  // Подсвечиваем активный пункт меню
+            loadProductData();
+            initTabs();
+        });
+
+        // Подсветка активного пункта меню
+        function setActiveNavItem() {
+            const currentPath = window.location.pathname.replace(/\/$/, '');
+            document.querySelectorAll('.sidebar a').forEach(link => {
+                link.classList.remove('bg-brand-blue', 'text-white');
+                link.classList.add('hover:bg-brand-blue-light', 'text-brand-blue');
+                
+                const linkPath = link.getAttribute('href').replace(/\/$/, '');
+                if (linkPath === currentPath) {
+                    link.classList.remove('hover:bg-brand-blue-light', 'text-brand-blue');
+                    link.classList.add('bg-brand-blue', 'text-white');
+                }
+            });
+        }
+
+        // Инициализация вкладок
+        function initTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabName = tab.dataset.tab;
+
+                    // Переключение активных классов
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    // Переключение панелей
+                    document.querySelectorAll('.tab-panel').forEach(panel => {
+                        panel.classList.add('hidden');
+                        if (panel.dataset.panel === tabName) {
+                            panel.classList.remove('hidden');
+                        }
+                    });
+
+                    // Рендеринг графика при переключении
+                    setTimeout(() => {
+                        if (tabName === 'sales' && salesChartInstance) {
+                            salesChartInstance.resize();
+                        }
+                    }, 100);
+                });
+            });
+        }
+
+        // Загрузка данных товара
+        async function loadProductData() {
+            const params = Utils.getUrlParams();
+            const productId = params.id;
+
+            if (!productId) {
+                Utils.showToast('Товар не выбран', 'error');
+                setTimeout(() => window.location.href = '/products', 2000);
+                return;
+            }
+
+            try {
+                // Загрузка полной информации о товаре (с метриками)
+                currentProduct = await api.getProductDetailed(productId);
+                console.log('Product Detailed:', currentProduct);  // Отладка
+                renderProductInfo();
+                renderProductKPI();
+
+                // Загрузка аналитики (90 дней)
+                const days = 90;
+
+                // Продажи
+                const salesData = await api.getSalesHistory(productId, days);
+                console.log('Sales History:', salesData);
+                renderSalesChart(salesData);
+
+                // Остатки
+                const stockData = await api.getStockHistory(productId, days);
+                console.log('Stock History:', stockData);
+                renderStockChart(stockData);
+
+                // Цены
+                const priceData = await api.getPriceHistory(productId, days);
+                console.log('Price History:', priceData);
+                renderPriceChart(priceData);
+
+                // Соц. данные
+                const socialData = await api.getSocialHistory(productId, days);
+                console.log('Social History:', socialData);
+                renderSocialChart(socialData);
+
+                // Прогноз
+                try {
+                    const forecastData = await api.getProductForecasts({ product_id: productId });
+                    console.log('Forecast:', forecastData);
+                    renderForecastChart(forecastData);
+                } catch (e) {
+                    console.log('Forecast not available:', e);
+                    document.getElementById('forecast-alert').classList.remove('hidden');
+                }
+
+            } catch (error) {
+                console.error('Product Analytics Error:', error);
+                Utils.showToast('Ошибка загрузки: ' + error.message, 'error');
+                setTimeout(() => window.location.href = '/products', 2000);
+            }
+        }
+
+        // Рендеринг KPI товара
+        function renderProductKPI() {
+            if (!currentProduct) return;
+
+            const stock = currentProduct.stock || 0;
+            const avgDailySales = currentProduct.avg_daily_sales || 0;
+            const daysToOOS = avgDailySales > 0 ? Math.ceil(stock / avgDailySales) : '∞';
+
+            document.getElementById('product-kpi').innerHTML = `
+                <div class="kpi-card">
+                    <p class="kpi-label">Текущий остаток</p>
+                    <p class="kpi-value ${getStockColorClass(stock)}">${stock} шт.</p>
+                    <p class="kpi-delta ${getStockDeltaClass(stock)}">${getStockStatusText(stock)}</p>
+                </div>
+                <div class="kpi-card">
+                    <p class="kpi-label">Дней до OOS</p>
+                    <p class="kpi-value ${getOOSColorClass(daysToOOS)}">${daysToOOS}</p>
+                    <p class="kpi-delta">при продаже ${avgDailySales.toFixed(2)} шт/день</p>
+                </div>
+                <div class="kpi-card">
+                    <p class="kpi-label">Средняя цена</p>
+                    <p class="kpi-value text-brand-blue">${Utils.formatCurrency(currentProduct.price)}</p>
+                    <p class="kpi-delta">на текущий момент</p>
+                </div>
+                <div class="kpi-card">
+                    <p class="kpi-label">Среднедневные продажи</p>
+                    <p class="kpi-value text-brand-blue">${avgDailySales.toFixed(2)} шт.</p>
+                    <p class="kpi-delta">за последние 30 дней</p>
+                </div>
+            `;
+        }
+
+        // Рендеринг информации о товаре
+        function renderProductInfo() {
+            if (!currentProduct) return;
+
+            document.getElementById('product-title').textContent = currentProduct.name || `Товар ${currentProduct.product_id}`;
+            document.getElementById('product-subtitle').textContent = `Артикул: ${currentProduct.article} | Бренд: ${currentProduct.brand || '—'}`;
+
+            document.getElementById('product-details').innerHTML = `
+                <div class="space-y-2">
+                    <div class="flex justify-between py-2 border-b border-brand-grey-border">
+                        <span class="text-gray-500">Категория:</span>
+                        <span class="font-medium">${currentProduct.subject || '—'}</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-brand-grey-border">
+                        <span class="text-gray-500">Тип:</span>
+                        <span class="font-medium">${currentProduct.entity || '—'}</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-brand-grey-border">
+                        <span class="text-gray-500">Рейтинг:</span>
+                        <span class="font-medium">${currentProduct.rating || '—'}</span>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between py-2 border-b border-brand-grey-border">
+                        <span class="text-gray-500">Всего продаж:</span>
+                        <span class="font-medium">${Utils.formatNumber(currentProduct.total_sales || 0)}</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-brand-grey-border">
+                        <span class="text-gray-500">Выручка:</span>
+                        <span class="font-medium">${Utils.formatCurrency(currentProduct.total_revenue || 0)}</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-brand-grey-border">
+                        <span class="text-gray-500">Отзывов:</span>
+                        <span class="font-medium">${currentProduct.reviews_count || 0}</span>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between py-2 border-b border-brand-grey-border">
+                        <span class="text-gray-500">Вопросов:</span>
+                        <span class="font-medium">${currentProduct.questions_count || 0}</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-brand-grey-border">
+                        <span class="text-gray-500">Лайков:</span>
+                        <span class="font-medium">${currentProduct.likes || 0}</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-brand-grey-border">
+                        <span class="text-gray-500">Обновлено:</span>
+                        <span class="font-medium">${currentProduct.updated_at ? Utils.formatDateTime(currentProduct.updated_at) : '—'}</span>
+                    </div>
+                </div>
+            `;
+
+            // Соц. метрики
+            document.getElementById('current-rating').textContent = currentProduct.rating || '—';
+            document.getElementById('total-feedbacks').textContent = currentProduct.reviews_count || 0;
+            document.getElementById('total-questions').textContent = currentProduct.questions_count || 0;
+        }
+
+        // Рендеринг графика продаж
+        let salesChartInstance = null;
+        function renderSalesChart(data) {
+            const ctx = document.getElementById('salesChart').getContext('2d');
+
+            if (salesChartInstance) {
+                salesChartInstance.destroy();
+            }
+
+            salesChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => new Date(d.dt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })),
+                    datasets: [{
+                        label: 'Продажи (шт)',
+                        data: data.map(d => d.sales),
+                        backgroundColor: '#123273',
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#F2F2F2' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Рендеринг графика остатков
+        let stockChartInstance = null;
+        function renderStockChart(data) {
+            const ctx = document.getElementById('stockChart').getContext('2d');
+
+            if (stockChartInstance) {
+                stockChartInstance.destroy();
+            }
+
+            stockChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => new Date(d.dt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })),
+                    datasets: [{
+                        label: 'Остатки (шт)',
+                        data: data.map(d => d.quantity),
+                        borderColor: '#123273',
+                        backgroundColor: 'rgba(18, 50, 115, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#F2F2F2' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Рендеринг графика цен
+        let priceChartInstance = null;
+        function renderPriceChart(data) {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+
+            if (priceChartInstance) {
+                priceChartInstance.destroy();
+            }
+
+            priceChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => new Date(d.dt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })),
+                    datasets: [{
+                        label: 'Цена (₽)',
+                        data: data.map(d => d.price_sale),
+                        borderColor: '#123273',
+                        backgroundColor: 'rgba(18, 50, 115, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: { color: '#F2F2F2' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Рендеринг графика рейтинга
+        let ratingChartInstance = null;
+        function renderSocialChart(data) {
+            const ctx = document.getElementById('ratingChart').getContext('2d');
+
+            if (ratingChartInstance) {
+                ratingChartInstance.destroy();
+            }
+
+            ratingChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => new Date(d.dt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })),
+                    datasets: [
+                        {
+                            label: 'Рейтинг',
+                            data: data.map(d => d.rating),
+                            borderColor: '#123273',
+                            backgroundColor: 'rgba(18, 50, 115, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            yAxisID: 'y',
+                        },
+                        {
+                            label: 'Отзывы',
+                            data: data.map(d => d.feedbacks),
+                            borderColor: '#E4E9FC',
+                            backgroundColor: 'rgba(228, 233, 252, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            yAxisID: 'y1',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            max: 5,
+                            grid: { color: '#F2F2F2' },
+                            position: 'left',
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            grid: { display: false },
+                            position: 'right',
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Рендеринг графика прогноза
+        let forecastChartInstance = null;
+        function renderForecastChart(data) {
+            const ctx = document.getElementById('forecastChart').getContext('2d');
+
+            if (forecastChartInstance) {
+                forecastChartInstance.destroy();
+            }
+
+            // Бэкенд возвращает { data: [{product_id, forecast_history: [...]}] }
+            const forecasts = data?.data?.[0]?.forecast_history || [];
+            
+            if (!forecasts || forecasts.length === 0) {
+                document.getElementById('forecast-alert').classList.remove('hidden');
+                return;
+            }
+
+            forecastChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: forecasts.map(f => new Date(f.dt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })),
+                    datasets: [
+                        {
+                            label: 'Прогноз продаж (шт)',
+                            data: forecasts.map(f => f.predicted_sales),
+                            borderColor: '#123273',
+                            backgroundColor: 'rgba(18, 50, 115, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#F2F2F2' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Утилиты
+        function getStockColorClass(stock) {
+            if (stock <= 0) return 'text-red-500';
+            if (stock <= 10) return 'text-yellow-500';
+            return 'text-green-500';
+        }
+
+        function getStockDeltaClass(stock) {
+            if (stock <= 0) return 'negative';
+            if (stock <= 10) return 'negative';
+            return 'positive';
+        }
+
+        function getStockStatusText(stock) {
+            if (stock <= 0) return 'Нет на складе';
+            if (stock <= 10) return 'Мало на складе';
+            return 'В наличии';
+        }
+
+        function getOOSColorClass(days) {
+            if (days === '∞') return 'text-gray-500';
+            if (days <= 7) return 'text-red-500';
+            if (days <= 14) return 'text-yellow-500';
+            return 'text-green-500';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - Динамика остатков</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-dark': '#070F26',
+                        'brand-blue': '#123273',
+                        'brand-light-bg': '#F3F6FD',
+                        'brand-blue-light': '#E4E9FC',
+                        'brand-grey-border': '#F2F2F2',
+                        'brand-white': '#FFFFFF',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-brand-light-bg min-h-screen text-brand-dark">
+    <!-- Боковая панель -->
+    <nav class="sidebar">
+        <h1 class="sidebar-logo">SmartStock</h1>
+        <ul class="space-y-2">
+            <li>
+                <a href="/dashboard" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 Дашборд
+                </a>
+            </li>
+            <li>
+                <a href="/favorites" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    ❤️ Избранное
+                </a>
+            </li>
+            <li>
+                <a href="/products" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏷️ Товары
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-sales" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📈 Аналитика продаж
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-stock" class="block p-3 bg-brand-blue rounded-lg text-white font-medium" data-requires-user>
+                    📦 Остатки
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-abc" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔤 ABC-анализ
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-xyz" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 XYZ-анализ
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-tops" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏆 Топы
+                </a>
+            </li>
+            <li>
+                <a href="/forecasts" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔮 Прогнозы
+                </a>
+            </li>
+            <li>
+                <a href="/telegram" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📱 Telegram
+                </a>
+            </li>
+            <li>
+                <a href="/profile" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    👤 Профиль
+                </a>
+            </li>
+            <li>
+                <a href="/admin" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors hidden" data-requires-admin>
+                    ⚙️ Админка
+                </a>
+            </li>
+        </ul>
+        <div class="absolute bottom-4 left-4 right-4">
+            <div class="mb-2 text-sm text-gray-500 truncate" data-user-info></div>
+            <button
+                onclick="AuthHelper.logout()"
+                class="w-full p-3 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+            >
+                Выйти
+            </button>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <main class="ml-64 p-8">
+        <!-- Заголовок -->
+        <header class="mb-8">
+            <h2 class="text-3xl font-bold text-brand-dark">Динамика остатков</h2>
+            <p class="text-gray-600 mt-1">Изменение складских запасов по дням</p>
+        </header>
+
+        <!-- Фильтры -->
+        <div class="card mb-8 fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Период (дней)</label>
+                    <select
+                        id="filter-days"
+                        class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                    >
+                        <option value="7">7 дней</option>
+                        <option value="14">14 дней</option>
+                        <option value="30" selected>30 дней</option>
+                        <option value="90">90 дней</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Бренд</label>
+                    <input
+                        type="text"
+                        id="filter-brand"
+                        class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                        placeholder="Например: Nike"
+                    >
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Категория</label>
+                    <input
+                        type="text"
+                        id="filter-subject"
+                        class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                        placeholder="Например: Обувь"
+                    >
+                </div>
+                <div class="flex items-end">
+                    <button
+                        onclick="applyFilters()"
+                        class="w-full px-6 py-2 bg-brand-blue text-white rounded-lg font-semibold hover:bg-brand-blue/90 transition-colors"
+                    >
+                        Применить
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI карточки -->
+        <div class="kpi-grid mb-8">
+            <div class="kpi-card">
+                <p class="kpi-label">Средний остаток</p>
+                <p class="kpi-value" id="avg-stock">—</p>
+                <p class="kpi-delta">штук в день</p>
+            </div>
+            <div class="kpi-card">
+                <p class="kpi-label">Текущий остаток</p>
+                <p class="kpi-value" id="current-stock">—</p>
+                <p class="kpi-delta">на последнюю дату</p>
+            </div>
+            <div class="kpi-card">
+                <p class="kpi-label">Изменение</p>
+                <p class="kpi-value" id="stock-change">—</p>
+                <p class="kpi-delta">за период</p>
+            </div>
+            <div class="kpi-card">
+                <p class="kpi-label">Мин. остаток</p>
+                <p class="kpi-value text-red-500" id="min-stock">—</p>
+                <p class="kpi-delta">минимальное значение</p>
+            </div>
+        </div>
+
+        <!-- График -->
+        <div class="card fade-in mb-8">
+            <h3 class="text-lg font-bold mb-4">📦 Динамика остатков на складе</h3>
+            <div class="chart-container" style="height: 400px;">
+                <canvas id="stockChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Товары с низким остатком -->
+        <div class="card fade-in">
+            <h3 class="text-lg font-bold mb-4">⚠️ Товары с низким остатком</h3>
+            <div class="overflow-x-auto">
+                <table class="data-table w-full">
+                    <thead>
+                        <tr>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Товар</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Артикул</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Остаток</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Статус</th>
+                        </tr>
+                    </thead>
+                    <tbody id="low-stock-table-body">
+                        <tr>
+                            <td colspan="4" class="py-8 text-center text-gray-400">Загрузка данных...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/api-client.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script>
+        let stockChartInstance = null;
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', async () => {
+            AuthHelper.updateNavigation();
+            setActiveNavItem();  // Подсвечиваем активный пункт меню
+            loadStockAnalytics();
+        });
+
+        // Подсветка активного пункта меню
+        function setActiveNavItem() {
+            const currentPath = window.location.pathname.replace(/\/$/, '');  // Убираем trailing slash
+            document.querySelectorAll('.sidebar a').forEach(link => {
+                link.classList.remove('bg-brand-blue', 'text-white');
+                link.classList.add('hover:bg-brand-blue-light', 'text-brand-blue');
+                
+                const linkPath = link.getAttribute('href').replace(/\/$/, '');  // Убираем trailing slash
+                if (linkPath === currentPath) {
+                    link.classList.remove('hover:bg-brand-blue-light', 'text-brand-blue');
+                    link.classList.add('bg-brand-blue', 'text-white');
+                }
+            });
+        }
+
+        // Применение фильтров
+        function applyFilters() {
+            loadStockAnalytics();
+        }
+
+        // Загрузка аналитики остатков
+        async function loadStockAnalytics() {
+            const days = parseInt(document.getElementById('filter-days').value);
+            const brand = document.getElementById('filter-brand').value.trim();
+            const subject = document.getElementById('filter-subject').value.trim();
+
+            const params = { days };
+            if (brand) params.brand = brand;
+            if (subject) params.subject = subject;
+
+            try {
+                const data = await api.getStockDynamics(params);
+                console.log('Stock Data:', data);  // Отладка
+                renderStockChart(data);
+                calculateMetrics(data);
+                
+                // Загружаем товары с низким остатком
+                const lowStock = await api.getLowStock(10);
+                renderLowStockTable(lowStock);
+            } catch (error) {
+                console.error('Stock Error:', error);
+                Utils.showToast('Ошибка загрузки: ' + error.message, 'error');
+            }
+        }
+
+        // Рендеринг графика
+        function renderStockChart(data) {
+            const ctx = document.getElementById('stockChart').getContext('2d');
+
+            if (stockChartInstance) {
+                stockChartInstance.destroy();
+            }
+
+            // Бэкенд возвращает { data: [{dt, quantity}, ...] }
+            const stockData = data.data || [];
+            const labels = stockData.map(item => {
+                const d = new Date(item.dt);
+                return d.toLocaleDateString('ru-RU', {day: '2-digit', month: '2-digit'});
+            });
+            const quantityValues = stockData.map(item => item.quantity || 0);
+
+            stockChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Остатки на складе (шт)',
+                        data: quantityValues,
+                        borderColor: '#123273',
+                        backgroundColor: 'rgba(18, 50, 115, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#F2F2F2' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Расчет метрик
+        function calculateMetrics(data) {
+            // Бэкенд возвращает { data: [{dt, quantity}, ...] }
+            const stockData = (data.data || []).map(item => item.quantity || 0);
+
+            if (stockData.length === 0) {
+                document.getElementById('avg-stock').textContent = '—';
+                document.getElementById('current-stock').textContent = '—';
+                document.getElementById('stock-change').textContent = '—';
+                document.getElementById('min-stock').textContent = '—';
+                return;
+            }
+
+            const avgStock = Math.round(stockData.reduce((a, b) => a + b, 0) / stockData.length);
+            const currentStock = stockData[stockData.length - 1];
+            const firstStock = stockData[0];
+            const change = currentStock - firstStock;
+            const minStock = Math.min(...stockData);
+
+            document.getElementById('avg-stock').textContent = `${avgStock} шт.`;
+            document.getElementById('current-stock').textContent = `${currentStock} шт.`;
+            
+            const changeEl = document.getElementById('stock-change');
+            changeEl.textContent = `${change > 0 ? '+' : ''}${change} шт.`;
+            changeEl.className = `kpi-value ${change >= 0 ? 'text-green-500' : 'text-red-500'}`;
+            
+            document.getElementById('min-stock').textContent = `${minStock} шт.`;
+        }
+
+        // Рендеринг таблицы товаров с низким остатком
+        function renderLowStockTable(lowStock) {
+            const tbody = document.getElementById('low-stock-table-body');
+            const items = lowStock.data || lowStock || [];
+
+            if (!items || items.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="py-8 text-center text-gray-400">Нет товаров с низким остатком ✓</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            const statusConfig = {
+                'critical': { class: 'bg-red-100 text-red-700', text: 'Критично' },
+                'warning': { class: 'bg-yellow-100 text-yellow-700', text: 'Внимание' },
+                'ok': { class: 'bg-green-100 text-green-700', text: 'OK' }
+            };
+
+            tbody.innerHTML = items.map(item => {
+                const status = statusConfig[item.status] || statusConfig.ok;
+                return `
+                <tr class="border-b border-brand-grey-border hover:bg-brand-blue-light/10 transition-colors">
+                    <td class="py-3 px-4 text-sm font-medium truncate max-w-xs">
+                        ${item.product_name || `Товар ${item.product_id}`}
+                    </td>
+                    <td class="py-3 px-4 text-sm text-gray-600">${item.product_id || '—'}</td>
+                    <td class="py-3 px-4 text-sm font-bold">${item.current_stock} шт.</td>
+                    <td class="py-3 px-4 text-sm">
+                        <span class="px-2 py-1 rounded text-xs font-medium ${status.class}">
+                            ${status.text} ${item.days_until_oos !== null ? `(${Math.round(item.days_until_oos)} дн.)` : ''}
+                        </span>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+    </script>
+</body>
+</html>

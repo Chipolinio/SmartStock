@@ -1,9 +1,13 @@
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func, and_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from src.db.models.Product import Product
+from src.db.models.SalesProxyTS import SalesProxyTS
+from src.db.models.PriceTS import PriceTS
+from src.db.models.SocialTS import SocialTS
+from src.db.models.StockTS import StockTS
 from src.db.schemas.Product import ProductCreate, ProductUpdate
 
 
@@ -149,3 +153,125 @@ async def delete_product(
     stmt = delete(Product).where(Product.product_id == product_id)
     await session.execute(stmt)
     await session.commit()
+
+
+# =============================================================================
+# АНАЛИТИКА ТОВАРА (отдельные метрики)
+# =============================================================================
+
+async def get_product_current_price(
+    product_id: int,
+    session: AsyncSession
+) -> float | None:
+    """Получить текущую цену товара (последняя запись)."""
+    stmt = (
+        select(PriceTS.price_sale)
+        .where(PriceTS.product_id == product_id)
+        .order_by(PriceTS.dt.desc())
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_product_current_stock(
+    product_id: int,
+    session: AsyncSession
+) -> int:
+    """Получить текущий остаток товара (последняя запись)."""
+    stmt = (
+        select(StockTS.quantity)
+        .where(StockTS.product_id == product_id)
+        .order_by(StockTS.dt.desc())
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none() or 0
+
+
+async def get_product_avg_daily_sales(
+    product_id: int,
+    session: AsyncSession,
+    days: int = 30
+) -> float:
+    """Получить средние продажи в день за период."""
+    from datetime import date, timedelta
+    start_date = date.today() - timedelta(days=days)
+    
+    stmt = (
+        select(func.avg(SalesProxyTS.sales))
+        .where(
+            SalesProxyTS.product_id == product_id,
+            SalesProxyTS.dt >= start_date
+        )
+    )
+    result = await session.execute(stmt)
+    return float(result.scalar_one_or_none() or 0)
+
+
+async def get_product_social_metrics(
+    product_id: int,
+    session: AsyncSession
+) -> tuple[float | None, int | None]:
+    """Получить рейтинг и количество отзывов (последняя запись)."""
+    stmt = (
+        select(SocialTS.rating, SocialTS.feedbacks)
+        .where(SocialTS.product_id == product_id)
+        .order_by(SocialTS.dt.desc())
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    row = result.first()
+    return (row.rating if row else None, row.feedbacks if row else None)
+
+
+async def get_product_total_stats(
+    product_id: int,
+    session: AsyncSession
+) -> tuple[int, float]:
+    """Получить общую сумму продаж и выручку за всё время."""
+    stmt = (
+        select(
+            func.sum(SalesProxyTS.sales).label("total_sales"),
+            func.sum(SalesProxyTS.sales * PriceTS.price_sale).label("total_revenue")
+        )
+        .join(PriceTS, and_(
+            PriceTS.product_id == SalesProxyTS.product_id,
+            PriceTS.dt == SalesProxyTS.dt
+        ))
+        .where(SalesProxyTS.product_id == product_id)
+    )
+    result = await session.execute(stmt)
+    row = result.first()
+    return (
+        row.total_sales if row and row.total_sales else 0,
+        float(row.total_revenue) if row and row.total_revenue else 0.0
+    )
+
+
+async def get_product_detailed_stats(
+    product_id: int,
+    session: AsyncSession
+) -> dict:
+    """
+    Получить полную статистику по товару для страницы аналитики.
+    Собирает данные из отдельных методов.
+    """
+    price = await get_product_current_price(product_id, session)
+    stock = await get_product_current_stock(product_id, session)
+    avg_daily_sales = await get_product_avg_daily_sales(product_id, session)
+    rating, reviews_count = await get_product_social_metrics(product_id, session)
+    total_sales, total_revenue = await get_product_total_stats(product_id, session)
+    
+    days_to_oos = int(stock / avg_daily_sales) if avg_daily_sales > 0 else None
+    
+    return {
+        "price": price,
+        "stock": stock,
+        "avg_daily_sales": avg_daily_sales,
+        "days_to_oos": days_to_oos,
+        "rating": rating,
+        "reviews_count": reviews_count,
+        "total_sales": total_sales,
+        "total_revenue": total_revenue
+    }

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - Профиль</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-dark': '#070F26',
+                        'brand-blue': '#123273',
+                        'brand-light-bg': '#F3F6FD',
+                        'brand-blue-light': '#E4E9FC',
+                        'brand-grey-border': '#F2F2F2',
+                        'brand-white': '#FFFFFF',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-brand-light-bg min-h-screen text-brand-dark">
+    <!-- Боковая панель -->
+    <nav class="sidebar">
+        <h1 class="sidebar-logo">SmartStock</h1>
+        <ul class="space-y-2">
+            <li>
+                <a href="/dashboard" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 Дашборд
+                </a>
+            </li>
+            <li>
+                <a href="/favorites" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    ❤️ Избранное
+                </a>
+            </li>
+            <li>
+                <a href="/products" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏷️ Товары
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-sales" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📈 Аналитика
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-stock" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📦 Остатки
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-abc" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔤 ABC
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-xyz" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 XYZ
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-tops" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏆 Топы
+                </a>
+            </li>
+            <li>
+                <a href="/forecasts" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔮 Прогнозы
+                </a>
+            </li>
+            <li>
+                <a href="/telegram" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📱 Telegram
+                </a>
+            </li>
+            <li>
+                <a href="/profile" class="block p-3 bg-brand-blue rounded-lg text-white font-medium" data-requires-user>
+                    👤 Профиль
+                </a>
+            </li>
+            <li>
+                <a href="/admin" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors hidden" data-requires-admin>
+                    ⚙️ Админка
+                </a>
+            </li>
+        </ul>
+        <div class="absolute bottom-4 left-4 right-4">
+            <div class="mb-2 text-sm text-gray-500 truncate" data-user-info></div>
+            <button
+                onclick="AuthHelper.logout()"
+                class="w-full p-3 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+            >
+                Выйти
+            </button>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <main class="ml-64 p-8">
+        <!-- Заголовок -->
+        <header class="mb-8">
+            <h2 class="text-3xl font-bold text-brand-dark">Профиль пользователя</h2>
+            <p class="text-gray-600 mt-1">Управление настройками аккаунта</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Информация о пользователе -->
+            <div class="card fade-in">
+                <h3 class="text-lg font-bold mb-4">📊 Информация об аккаунте</h3>
+                <div id="user-info-block" class="space-y-4">
+                    <div class="flex items-center gap-3">
+                        <span class="spinner"></span>
+                        <span class="text-gray-500">Загрузка информации...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Редактирование профиля -->
+            <div class="card fade-in">
+                <h3 class="text-lg font-bold mb-4">✏️ Редактировать профиль</h3>
+                <form id="profile-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input
+                            type="email"
+                            id="profile-email"
+                            class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none transition"
+                            placeholder="example@mail.ru"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Новый пароль</label>
+                        <input
+                            type="password"
+                            id="profile-new-password"
+                            class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none transition"
+                            placeholder="Оставьте пустым, чтобы не менять"
+                            minlength="6"
+                        >
+                        <p class="text-xs text-gray-500 mt-1">Минимум 6 символов</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Подтверждение пароля</label>
+                        <input
+                            type="password"
+                            id="profile-confirm-password"
+                            class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none transition"
+                            placeholder="Подтвердите новый пароль"
+                            minlength="6"
+                        >
+                    </div>
+                    <button
+                        type="submit"
+                        id="save-btn"
+                        class="w-full py-3 bg-brand-blue text-white rounded-lg font-semibold hover:bg-brand-blue/90 transition-colors"
+                    >
+                        Сохранить изменения
+                    </button>
+                </form>
+                <div id="profile-message" class="mt-4 text-sm text-center hidden"></div>
+            </div>
+        </div>
+
+        <!-- Статистика аккаунта -->
+        <div class="card mt-8 fade-in">
+            <h3 class="text-lg font-bold mb-4">📈 Статистика аккаунта</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-brand-light-bg p-4 rounded-lg">
+                    <p class="text-gray-500 text-sm">Дата регистрации</p>
+                    <p class="text-xl font-bold text-brand-dark" id="reg-date">—</p>
+                </div>
+                <div class="bg-brand-light-bg p-4 rounded-lg">
+                    <p class="text-gray-500 text-sm">Товаров в избранном</p>
+                    <p class="text-xl font-bold text-brand-blue" id="favorites-count">—</p>
+                </div>
+                <div class="bg-brand-light-bg p-4 rounded-lg">
+                    <p class="text-gray-500 text-sm">Статус аккаунта</p>
+                    <p class="text-xl font-bold" id="account-status">—</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/api-client.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script>
+        // Загрузка информации о пользователе
+        async function loadUserInfo() {
+            const infoBlock = document.getElementById('user-info-block');
+
+            try {
+                const user = await api.getCurrentUser();
+
+                infoBlock.innerHTML = `
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center py-2 border-b border-brand-grey-border">
+                            <span class="text-gray-500">Email:</span>
+                            <span class="font-medium text-brand-dark">${user.email}</span>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-b border-brand-grey-border">
+                            <span class="text-gray-500">Роль:</span>
+                            <span class="px-2 py-1 rounded text-xs font-medium ${user.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-brand-blue-light text-brand-blue'}">
+                                ${user.role === 'admin' ? 'Администратор' : 'Пользователь'}
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-b border-brand-grey-border">
+                            <span class="text-gray-500">PRO статус:</span>
+                            <span class="px-2 py-1 rounded text-xs font-medium ${user.is_pro ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}">
+                                ${user.is_pro ? 'PRO аккаунт' : 'Базовый аккаунт'}
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-b border-brand-grey-border">
+                            <span class="text-gray-500">Активен:</span>
+                            <span class="px-2 py-1 rounded text-xs font-medium ${user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                                ${user.is_active ? 'Да' : 'Нет'}
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center py-2">
+                            <span class="text-gray-500">ID пользователя:</span>
+                            <span class="font-mono text-sm text-gray-600">#${user.id}</span>
+                        </div>
+                    </div>
+                `;
+
+                // Обновление статистики
+                document.getElementById('reg-date').textContent = Utils.formatDate(user.created_at);
+                document.getElementById('account-status').textContent = user.is_pro ? 'PRO' : 'Базовый';
+                document.getElementById('account-status').className = `text-xl font-bold ${user.is_pro ? 'text-brand-blue' : 'text-gray-600'}`;
+
+                // Загрузка количества избранных
+                try {
+                    const favorites = await api.getFavorites();
+                    document.getElementById('favorites-count').textContent = favorites.length;
+                } catch (e) {
+                    document.getElementById('favorites-count').textContent = '0';
+                }
+
+                // Заполнение формы
+                document.getElementById('profile-email').value = user.email;
+
+            } catch (error) {
+                infoBlock.innerHTML = `
+                    <div class="flex items-center gap-3 p-4 bg-red-50 rounded-lg border border-red-200">
+                        <span class="text-2xl">❌</span>
+                        <div>
+                            <p class="font-medium text-red-700">Ошибка загрузки</p>
+                            <p class="text-sm text-red-600">${error.message}</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Сохранение изменений профиля
+        document.getElementById('profile-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById('profile-email').value.trim();
+            const newPassword = document.getElementById('profile-new-password').value;
+            const confirmPassword = document.getElementById('profile-confirm-password').value;
+            const messageDiv = document.getElementById('profile-message');
+            const saveBtn = document.getElementById('save-btn');
+
+            messageDiv.classList.add('hidden');
+
+            // Валидация паролей
+            if (newPassword && newPassword !== confirmPassword) {
+                messageDiv.textContent = 'Пароли не совпадают';
+                messageDiv.className = 'mt-4 text-sm text-center text-red-500';
+                messageDiv.classList.remove('hidden');
+                return;
+            }
+
+            if (newPassword && newPassword.length < 6) {
+                messageDiv.textContent = 'Пароль должен быть не менее 6 символов';
+                messageDiv.className = 'mt-4 text-sm text-center text-red-500';
+                messageDiv.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                Utils.showLoading(saveBtn);
+
+                const updateData = { email };
+                if (newPassword) {
+                    updateData.password = newPassword;
+                }
+
+                await api.updateProfile(updateData);
+
+                messageDiv.textContent = 'Профиль успешно обновлен!';
+                messageDiv.className = 'mt-4 text-sm text-center text-green-500';
+                messageDiv.classList.remove('hidden');
+
+                Utils.showToast('Профиль обновлен', 'success');
+
+                // Очистка полей пароля
+                document.getElementById('profile-new-password').value = '';
+                document.getElementById('profile-confirm-password').value = '';
+
+                // Перезагрузка информации
+                loadUserInfo();
+
+            } catch (error) {
+                messageDiv.textContent = 'Ошибка: ' + error.message;
+                messageDiv.className = 'mt-4 text-sm text-center text-red-500';
+                messageDiv.classList.remove('hidden');
+                Utils.showToast('Ошибка обновления: ' + error.message, 'error');
+            } finally {
+                Utils.hideLoading(saveBtn);
+            }
+        });
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', async () => {
+            
+            AuthHelper.updateNavigation();
+            loadUserInfo();
+        });
+    </script>
+</body>
+</html>

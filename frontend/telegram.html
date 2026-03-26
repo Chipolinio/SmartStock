@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - Telegram</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-dark': '#070F26',
+                        'brand-blue': '#123273',
+                        'brand-light-bg': '#F3F6FD',
+                        'brand-blue-light': '#E4E9FC',
+                        'brand-grey-border': '#F2F2F2',
+                        'brand-white': '#FFFFFF',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-brand-light-bg min-h-screen text-brand-dark">
+    <!-- Боковая панель -->
+    <nav class="sidebar">
+        <h1 class="sidebar-logo">SmartStock</h1>
+        <ul class="space-y-2">
+            <li>
+                <a href="/dashboard" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 Дашборд
+                </a>
+            </li>
+            <li>
+                <a href="/favorites" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    ❤️ Избранное
+                </a>
+            </li>
+            <li>
+                <a href="/products" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏷️ Товары
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-sales" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📈 Аналитика
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-stock" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📦 Остатки
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-abc" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔤 ABC
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-xyz" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 XYZ
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-tops" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏆 Топы
+                </a>
+            </li>
+            <li>
+                <a href="/forecasts" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔮 Прогнозы
+                </a>
+            </li>
+            <li>
+                <a href="/telegram" class="block p-3 bg-brand-blue rounded-lg text-white font-medium" data-requires-user>
+                    📱 Telegram
+                </a>
+            </li>
+            <li>
+                <a href="/profile" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    👤 Профиль
+                </a>
+            </li>
+            <li>
+                <a href="/admin" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors hidden" data-requires-admin>
+                    ⚙️ Админка
+                </a>
+            </li>
+        </ul>
+        <div class="absolute bottom-4 left-4 right-4">
+            <div class="mb-2 text-sm text-gray-500 truncate" data-user-info></div>
+            <button
+                onclick="AuthHelper.logout()"
+                class="w-full p-3 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+            >
+                Выйти
+            </button>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <main class="ml-64 p-8">
+        <!-- Заголовок -->
+        <header class="mb-8">
+            <h2 class="text-3xl font-bold text-brand-dark">Telegram Бот</h2>
+            <p class="text-gray-600 mt-1">Привяжите свой Telegram для получения уведомлений</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Информация о привязке -->
+            <div class="card fade-in">
+                <h3 class="text-lg font-bold mb-4">📊 Статус привязки</h3>
+                <div id="link-status" class="space-y-4">
+                    <div class="flex items-center gap-3">
+                        <span class="spinner"></span>
+                        <span class="text-gray-500">Загрузка информации...</span>
+                    </div>
+                </div>
+
+                <div class="mt-6 p-4 bg-brand-light-bg rounded-lg">
+                    <h4 class="font-medium text-brand-blue mb-2">Преимущества привязки:</h4>
+                    <ul class="space-y-2 text-sm text-gray-600">
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 mt-1">✓</span>
+                            <span>Мгновенные уведомления о изменениях остатков</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 mt-1">✓</span>
+                            <span>Оповещения о достижении минимального остатка</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 mt-1">✓</span>
+                            <span>Ежедневные сводки по продажам</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-500 mt-1">✓</span>
+                            <span>Быстрый доступ к аналитике через бота</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Форма привязки -->
+            <div class="card fade-in">
+                <h3 class="text-lg font-bold mb-4">🔗 Привязать Telegram</h3>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Ваш Telegram ID
+                        </label>
+                        <input
+                            type="number"
+                            id="tg-id-input"
+                            class="w-full px-4 py-3 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none transition"
+                            placeholder="Например: 123456789"
+                            min="1"
+                        >
+                        <p class="text-xs text-gray-500 mt-2">
+                            Узнайте свой ID через бота @userinfobot или аналогичного
+                        </p>
+                    </div>
+
+                    <button
+                        id="save-btn"
+                        onclick="saveTelegramId()"
+                        class="w-full py-3 bg-brand-blue text-white rounded-lg font-semibold hover:bg-brand-blue/90 transition-colors"
+                    >
+                        Сохранить
+                    </button>
+
+                    <button
+                        id="unlink-btn"
+                        onclick="unlinkTelegram()"
+                        class="w-full py-3 bg-white border border-red-500 text-red-500 rounded-lg font-semibold hover:bg-red-50 transition-colors hidden"
+                    >
+                        Отвязать Telegram
+                    </button>
+                </div>
+
+                <!-- Инструкция -->
+                <div class="mt-6 p-4 bg-brand-light-bg rounded-lg">
+                    <h4 class="font-medium text-brand-blue mb-3">Как узнать свой Telegram ID:</h4>
+                    <ol class="space-y-2 text-sm text-gray-600">
+                        <li class="flex items-start gap-2">
+                            <span class="font-bold text-brand-blue">1.</span>
+                            <span>Откройте Telegram и найдите бота <strong>@userinfobot</strong></span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="font-bold text-brand-blue">2.</span>
+                            <span>Нажмите <strong>Start</strong> или отправьте любое сообщение</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="font-bold text-brand-blue">3.</span>
+                            <span>Бот отправит вам ваш ID — скопируйте его</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="font-bold text-brand-blue">4.</span>
+                            <span>Вставьте ID в поле выше и нажмите «Сохранить»</span>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/api-client.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script>
+        let currentTelegramId = null;
+
+        // Загрузка информации о привязке
+        async function loadTelegramInfo() {
+            const statusDiv = document.getElementById('link-status');
+            const unlinkBtn = document.getElementById('unlink-btn');
+            const saveBtn = document.getElementById('save-btn');
+            const tgInput = document.getElementById('tg-id-input');
+
+            try {
+                const info = await api.getTelegramInfo();
+                currentTelegramId = info.telegram_id;
+
+                if (info.is_linked && info.telegram_id) {
+                    statusDiv.innerHTML = `
+                        <div class="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                            <span class="text-2xl">✅</span>
+                            <div>
+                                <p class="font-medium text-green-700">Telegram привязан</p>
+                                <p class="text-sm text-green-600">ID: <strong>${info.telegram_id}</strong></p>
+                            </div>
+                        </div>
+                    `;
+                    unlinkBtn.classList.remove('hidden');
+                    saveBtn.textContent = 'Обновить';
+                    tgInput.value = info.telegram_id;
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="flex items-center gap-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                            <span class="text-2xl">⚠️</span>
+                            <div>
+                                <p class="font-medium text-yellow-700">Telegram не привязан</p>
+                                <p class="text-sm text-yellow-600">Привяжите Telegram для получения уведомлений</p>
+                            </div>
+                        </div>
+                    `;
+                    unlinkBtn.classList.add('hidden');
+                    saveBtn.textContent = 'Сохранить';
+                    tgInput.value = '';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <div class="flex items-center gap-3 p-4 bg-red-50 rounded-lg border border-red-200">
+                        <span class="text-2xl">❌</span>
+                        <div>
+                            <p class="font-medium text-red-700">Ошибка загрузки</p>
+                            <p class="text-sm text-red-600">${error.message}</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Сохранение Telegram ID
+        async function saveTelegramId() {
+            const tgInput = document.getElementById('tg-id-input');
+            const saveBtn = document.getElementById('save-btn');
+            const tgId = tgInput.value.trim();
+
+            if (!tgId || parseInt(tgId) <= 0) {
+                Utils.showToast('Введите корректный Telegram ID', 'error');
+                return;
+            }
+
+            try {
+                Utils.showLoading(saveBtn);
+
+                const user = await api.getCurrentUser();
+                const result = await api.linkTelegram(parseInt(tgId), user.id);
+
+                Utils.showToast(result.message || 'Telegram ID успешно привязан', 'success');
+                loadTelegramInfo();
+            } catch (error) {
+                Utils.showToast('Ошибка: ' + error.message, 'error');
+            } finally {
+                Utils.hideLoading(saveBtn);
+            }
+        }
+
+        // Отвязка Telegram
+        async function unlinkTelegram() {
+            if (!confirm('Вы уверены, что хотите отвязать Telegram? Уведомления больше не будут приходить.')) {
+                return;
+            }
+
+            try {
+                await api.unlinkTelegram();
+                Utils.showToast('Telegram отвязан', 'success');
+                loadTelegramInfo();
+            } catch (error) {
+                Utils.showToast('Ошибка: ' + error.message, 'error');
+            }
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', async () => {
+            
+            AuthHelper.updateNavigation();
+            loadTelegramInfo();
+        });
+    </script>
+</body>
+</html>

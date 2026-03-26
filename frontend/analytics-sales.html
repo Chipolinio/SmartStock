@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - Аналитика продаж</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-dark': '#070F26',
+                        'brand-blue': '#123273',
+                        'brand-light-bg': '#F3F6FD',
+                        'brand-blue-light': '#E4E9FC',
+                        'brand-grey-border': '#F2F2F2',
+                        'brand-white': '#FFFFFF',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-brand-light-bg min-h-screen text-brand-dark">
+    <!-- Боковая панель -->
+    <nav class="sidebar">
+        <h1 class="sidebar-logo">SmartStock</h1>
+        <ul class="space-y-2">
+            <li>
+                <a href="/dashboard" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 Дашборд
+                </a>
+            </li>
+            <li>
+                <a href="/favorites" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    ❤️ Избранное
+                </a>
+            </li>
+            <li>
+                <a href="/products" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏷️ Товары
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-sales" class="block p-3 bg-brand-blue rounded-lg text-white font-medium" data-requires-user>
+                    📈 Аналитика
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-stock" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📦 Остатки
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-abc" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔤 ABC
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-xyz" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 XYZ
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-tops" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏆 Топы
+                </a>
+            </li>
+            <li>
+                <a href="/forecasts" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔮 Прогнозы
+                </a>
+            </li>
+            <li>
+                <a href="/telegram" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📱 Telegram
+                </a>
+            </li>
+            <li>
+                <a href="/profile" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    👤 Профиль
+                </a>
+            </li>
+            <li>
+                <a href="/admin" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors hidden" data-requires-admin>
+                    ⚙️ Админка
+                </a>
+            </li>
+        </ul>
+        <div class="absolute bottom-4 left-4 right-4">
+            <div class="mb-2 text-sm text-gray-500 truncate" data-user-info></div>
+            <button
+                onclick="AuthHelper.logout()"
+                class="w-full p-3 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+            >
+                Выйти
+            </button>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <main class="ml-64 p-8">
+        <!-- Заголовок -->
+        <header class="mb-8">
+            <h2 class="text-3xl font-bold text-brand-dark">Аналитика продаж</h2>
+            <p class="text-gray-600 mt-1">Динамика продаж и выручки по дням</p>
+        </header>
+
+        <!-- Фильтры -->
+        <div class="card mb-8 fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Период (дней)</label>
+                    <select
+                        id="filter-days"
+                        class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                    >
+                        <option value="7">7 дней</option>
+                        <option value="14">14 дней</option>
+                        <option value="30" selected>30 дней</option>
+                        <option value="90">90 дней</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Бренд</label>
+                    <input
+                        type="text"
+                        id="filter-brand"
+                        class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                        placeholder="Например: Nike"
+                    >
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Категория</label>
+                    <input
+                        type="text"
+                        id="filter-subject"
+                        class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                        placeholder="Например: Обувь"
+                    >
+                </div>
+                <div class="flex items-end">
+                    <button
+                        onclick="applyFilters()"
+                        class="w-full px-6 py-2 bg-brand-blue text-white rounded-lg font-semibold hover:bg-brand-blue/90 transition-colors"
+                    >
+                        Применить
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- График продаж -->
+        <div class="card fade-in mb-8">
+            <h3 class="text-lg font-bold mb-4">📈 Динамика продаж и выручки</h3>
+            <div class="chart-container" style="height: 400px;">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Метрики -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="card fade-in">
+                <p class="text-gray-500 text-sm mb-2">Средние продажи в день</p>
+                <p class="text-2xl font-bold text-brand-dark" id="avg-sales">—</p>
+            </div>
+            <div class="card fade-in">
+                <p class="text-gray-500 text-sm mb-2">Средняя выручка в день</p>
+                <p class="text-2xl font-bold text-brand-blue" id="avg-revenue">—</p>
+            </div>
+            <div class="card fade-in">
+                <p class="text-gray-500 text-sm mb-2">Пик продаж</p>
+                <p class="text-2xl font-bold text-green-500" id="peak-sales">—</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/api-client.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script>
+        let salesChartInstance = null;
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', async () => {
+            AuthHelper.updateNavigation();
+            setActiveNavItem();  // Подсвечиваем активный пункт меню
+            loadSalesAnalytics();
+        });
+
+        // Подсветка активного пункта меню
+        function setActiveNavItem() {
+            const currentPath = window.location.pathname.replace(/\/$/, '');  // Убираем trailing slash
+            document.querySelectorAll('.sidebar a').forEach(link => {
+                link.classList.remove('bg-brand-blue', 'text-white');
+                link.classList.add('hover:bg-brand-blue-light', 'text-brand-blue');
+                
+                const linkPath = link.getAttribute('href').replace(/\/$/, '');  // Убираем trailing slash
+                if (linkPath === currentPath) {
+                    link.classList.remove('hover:bg-brand-blue-light', 'text-brand-blue');
+                    link.classList.add('bg-brand-blue', 'text-white');
+                }
+            });
+        }
+
+        // Применение фильтров
+        function applyFilters() {
+            loadSalesAnalytics();
+        }
+
+        // Загрузка аналитики продаж
+        async function loadSalesAnalytics() {
+            const days = parseInt(document.getElementById('filter-days').value);
+            const brand = document.getElementById('filter-brand').value.trim();
+            const subject = document.getElementById('filter-subject').value.trim();
+
+            const params = { days };
+            if (brand) params.brand = brand;
+            if (subject) params.subject = subject;
+
+            try {
+                const data = await api.getSalesDynamics(params);
+                renderSalesChart(data);
+                calculateMetrics(data);
+            } catch (error) {
+                Utils.showToast('Ошибка загрузки: ' + error.message, 'error');
+            }
+        }
+
+        // Рендеринг графика
+        function renderSalesChart(data) {
+            const ctx = document.getElementById('salesChart').getContext('2d');
+
+            if (salesChartInstance) {
+                salesChartInstance.destroy();
+            }
+
+            // Бэкенд возвращает { data: [{dt, sales, revenue}, ...] }
+            const salesData = data.data || [];
+            const labels = salesData.map(item => {
+                const d = new Date(item.dt);
+                return d.toLocaleDateString('ru-RU', {day: '2-digit', month: '2-digit'});
+            });
+            const revenueValues = salesData.map(item => item.revenue || 0);
+            const salesValues = salesData.map(item => item.sales || 0);
+
+            salesChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Выручка (₽)',
+                            data: revenueValues,
+                            borderColor: '#123273',
+                            backgroundColor: 'rgba(18, 50, 115, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                        },
+                        {
+                            label: 'Продажи (шт)',
+                            data: salesValues,
+                            borderColor: '#E4E9FC',
+                            backgroundColor: 'rgba(228, 233, 252, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            yAxisID: 'y1',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#F2F2F2' },
+                            position: 'left',
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            grid: { display: false },
+                            position: 'right',
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Расчет метрик
+        function calculateMetrics(data) {
+            // Бэкенд возвращает { data: [{dt, sales, revenue}, ...] }
+            const salesData = (data.data || []).map(item => item.sales || 0);
+            const revenueData = (data.data || []).map(item => item.revenue || 0);
+
+            if (salesData.length === 0) {
+                document.getElementById('avg-sales').textContent = '—';
+                document.getElementById('avg-revenue').textContent = '—';
+                document.getElementById('peak-sales').textContent = '—';
+                return;
+            }
+
+            const avgSales = Math.round(salesData.reduce((a, b) => a + b, 0) / salesData.length);
+            const avgRevenue = revenueData.reduce((a, b) => a + b, 0) / revenueData.length;
+            const peakSales = Math.max(...salesData);
+
+            document.getElementById('avg-sales').textContent = `${avgSales} шт.`;
+            document.getElementById('avg-revenue').textContent = Utils.formatCurrency(avgRevenue);
+            document.getElementById('peak-sales').textContent = `${peakSales} шт.`;
+        }
+    </script>
+</body>
+</html>

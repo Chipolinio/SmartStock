@@ -53,6 +53,40 @@ class ProductResponse(ProductBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ProductWithDetailsResponse(ProductBase):
+    """Расширенный ответ для товара с ценой и остатком."""
+    id: Annotated[StrictInt, Field(..., ge=1, description="Внутренний ID записи в БД")]
+    article: Annotated[StrictInt, Field(..., gt=0, description="Артикул товара (wb_article)")]
+    price: Annotated[Optional[float], Field(None, ge=0, description="Текущая цена")]
+    stock: Annotated[Optional[int], Field(None, ge=0, description="Текущий остаток")]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProductDetailedResponse(ProductBase):
+    """Полный ответ для страницы аналитики товара."""
+    id: Annotated[StrictInt, Field(..., ge=1, description="Внутренний ID записи в БД")]
+    article: Annotated[StrictInt, Field(..., gt=0, description="Артикул товара")]
+    
+    # Текущие метрики
+    price: Annotated[Optional[float], Field(None, ge=0, description="Текущая цена")]
+    stock: Annotated[Optional[int], Field(None, ge=0, description="Текущий остаток")]
+    avg_daily_sales: Annotated[Optional[float], Field(None, ge=0, description="Средние продажи в день (30 дней)")]
+    days_to_oos: Annotated[Optional[int], Field(None, ge=0, description="Дней до обнуления склада")]
+    
+    # Соц. метрики
+    rating: Annotated[Optional[float], Field(None, ge=0, le=5, description="Текущий рейтинг")]
+    reviews_count: Annotated[Optional[int], Field(None, ge=0, description="Количество отзывов")]
+    questions_count: Annotated[Optional[int], Field(None, ge=0, description="Количество вопросов")]
+    likes: Annotated[Optional[int], Field(None, ge=0, description="Количество лайков")]
+    
+    # Статистика
+    total_sales: Annotated[Optional[int], Field(None, ge=0, description="Всего продаж")]
+    total_revenue: Annotated[Optional[float], Field(None, ge=0, description="Общая выручка")]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ProductUpdate(BaseModel):
     product_id: Annotated[Optional[int], Field(
         None,

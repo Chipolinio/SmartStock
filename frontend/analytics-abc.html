@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - ABC-анализ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-dark': '#070F26',
+                        'brand-blue': '#123273',
+                        'brand-light-bg': '#F3F6FD',
+                        'brand-blue-light': '#E4E9FC',
+                        'brand-grey-border': '#F2F2F2',
+                        'brand-white': '#FFFFFF',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-brand-light-bg min-h-screen text-brand-dark">
+    <!-- Боковая панель -->
+    <nav class="sidebar">
+        <h1 class="sidebar-logo">SmartStock</h1>
+        <ul class="space-y-2">
+            <li>
+                <a href="/dashboard" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 Дашборд
+                </a>
+            </li>
+            <li>
+                <a href="/favorites" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    ❤️ Избранное
+                </a>
+            </li>
+            <li>
+                <a href="/products" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏷️ Товары
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-sales" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📈 Аналитика продаж
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-stock" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📦 Остатки
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-abc" class="block p-3 bg-brand-blue rounded-lg text-white font-medium" data-requires-user>
+                    🔤 ABC-анализ
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-xyz" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📊 XYZ-анализ
+                </a>
+            </li>
+            <li>
+                <a href="/analytics-tops" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🏆 Топы
+                </a>
+            </li>
+            <li>
+                <a href="/forecasts" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    🔮 Прогнозы
+                </a>
+            </li>
+            <li>
+                <a href="/telegram" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    📱 Telegram
+                </a>
+            </li>
+            <li>
+                <a href="/profile" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>
+                    👤 Профиль
+                </a>
+            </li>
+            <li>
+                <a href="/admin" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors hidden" data-requires-admin>
+                    ⚙️ Админка
+                </a>
+            </li>
+        </ul>
+        <div class="absolute bottom-4 left-4 right-4">
+            <div class="mb-2 text-sm text-gray-500 truncate" data-user-info></div>
+            <button
+                onclick="AuthHelper.logout()"
+                class="w-full p-3 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+            >
+                Выйти
+            </button>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <main class="ml-64 p-8">
+        <!-- Заголовок -->
+        <header class="mb-8">
+            <h2 class="text-3xl font-bold text-brand-dark">ABC-анализ</h2>
+            <p class="text-gray-600 mt-1">Классификация товаров по вкладу в выручку (A-80%, B-15%, C-5%)</p>
+        </header>
+
+        <!-- Фильтры -->
+        <div class="card mb-8 fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Период (дней)</label>
+                    <select
+                        id="filter-days"
+                        class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                    >
+                        <option value="7">7 дней</option>
+                        <option value="14">14 дней</option>
+                        <option value="30" selected>30 дней</option>
+                        <option value="90">90 дней</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Бренд</label>
+                    <input
+                        type="text"
+                        id="filter-brand"
+                        class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                        placeholder="Например: Nike"
+                    >
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Категория</label>
+                    <input
+                        type="text"
+                        id="filter-subject"
+                        class="w-full px-4 py-2 border border-brand-grey-border rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none"
+                        placeholder="Например: Обувь"
+                    >
+                </div>
+                <div class="flex items-end">
+                    <button
+                        onclick="applyFilters()"
+                        class="w-full px-6 py-2 bg-brand-blue text-white rounded-lg font-semibold hover:bg-brand-blue/90 transition-colors"
+                    >
+                        Применить
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI карточки -->
+        <div class="kpi-grid mb-8">
+            <div class="kpi-card">
+                <p class="kpi-label">Группа A (80%)</p>
+                <p class="kpi-value text-brand-blue" id="count-a">—</p>
+                <p class="kpi-delta">товаров</p>
+            </div>
+            <div class="kpi-card">
+                <p class="kpi-label">Группа B (15%)</p>
+                <p class="kpi-value" id="count-b">—</p>
+                <p class="kpi-delta">товаров</p>
+            </div>
+            <div class="kpi-card">
+                <p class="kpi-label">Группа C (5%)</p>
+                <p class="kpi-value" id="count-c">—</p>
+                <p class="kpi-delta">товаров</p>
+            </div>
+            <div class="kpi-card">
+                <p class="kpi-label">Всего товаров</p>
+                <p class="kpi-value" id="count-total">—</p>
+                <p class="kpi-delta">в анализе</p>
+            </div>
+        </div>
+
+        <!-- График и таблица -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Pie chart -->
+            <div class="card fade-in">
+                <h3 class="text-lg font-bold mb-4">Распределение по группам</h3>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="abcPieChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Парето -->
+            <div class="card fade-in">
+                <h3 class="text-lg font-bold mb-4">Кривая Парето</h3>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="paretoChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Таблица -->
+        <div class="card fade-in">
+            <h3 class="text-lg font-bold mb-4">Детализация по товарам</h3>
+            <div class="overflow-x-auto">
+                <table class="data-table w-full">
+                    <thead>
+                        <tr>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Товар</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Артикул</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Выручка</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Доля %</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Накопленная доля %</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Группа</th>
+                        </tr>
+                    </thead>
+                    <tbody id="abc-table-body">
+                        <tr>
+                            <td colspan="6" class="py-8 text-center text-gray-400">Загрузка данных...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/api-client.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script>
+        let abcPieChartInstance = null;
+        let paretoChartInstance = null;
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', async () => {
+            AuthHelper.updateNavigation();
+            setActiveNavItem();  // Подсвечиваем активный пункт меню
+            loadABCAnalysis();
+        });
+
+        // Подсветка активного пункта меню
+        function setActiveNavItem() {
+            const currentPath = window.location.pathname.replace(/\/$/, '');  // Убираем trailing slash
+            document.querySelectorAll('.sidebar a').forEach(link => {
+                link.classList.remove('bg-brand-blue', 'text-white');
+                link.classList.add('hover:bg-brand-blue-light', 'text-brand-blue');
+                
+                const linkPath = link.getAttribute('href').replace(/\/$/, '');  // Убираем trailing slash
+                if (linkPath === currentPath) {
+                    link.classList.remove('hover:bg-brand-blue-light', 'text-brand-blue');
+                    link.classList.add('bg-brand-blue', 'text-white');
+                }
+            });
+        }
+
+        // Применение фильтров
+        function applyFilters() {
+            loadABCAnalysis();
+        }
+
+        // Загрузка ABC-анализа
+        async function loadABCAnalysis() {
+            const days = parseInt(document.getElementById('filter-days').value);
+            const brand = document.getElementById('filter-brand').value.trim();
+            const subject = document.getElementById('filter-subject').value.trim();
+
+            const params = { days };
+            if (brand) params.brand = brand;
+            if (subject) params.subject = subject;
+
+            try {
+                const data = await api.getABCAnalysis(params);
+                console.log('ABC Data:', data);  // Отладка
+                renderABCData(data);
+            } catch (error) {
+                console.error('ABC Error:', error);
+                Utils.showToast('Ошибка загрузки: ' + error.message, 'error');
+            }
+        }
+
+        // Рендеринг данных
+        function renderABCData(data) {
+            // Бэкенд возвращает { data: [...] }, где data — массив записей
+            const items = data.data || [];
+            
+            // Считаем группы на месте из данных
+            const groups = { A: 0, B: 0, C: 0 };
+            items.forEach(item => {
+                if (item.abc_class === 'A') groups.A++;
+                else if (item.abc_class === 'B') groups.B++;
+                else if (item.abc_class === 'C') groups.C++;
+            });
+
+            // Обновление KPI
+            document.getElementById('count-a').textContent = groups.A;
+            document.getElementById('count-b').textContent = groups.B;
+            document.getElementById('count-c').textContent = groups.C;
+            document.getElementById('count-total').textContent = items.length;
+
+            // Рендеринг таблицы
+            renderTable(items);
+
+            // Рендеринг графиков
+            renderPieChart(groups);
+            renderParetoChart(items);
+        }
+
+        // Таблица
+        function renderTable(items) {
+            const tbody = document.getElementById('abc-table-body');
+
+            if (!items || items.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-8 text-center text-gray-400">Нет данных</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Считаем накопленную долю
+            const totalRevenue = items.reduce((sum, item) => sum + (item.total_revenue || 0), 0);
+            let cumulative = 0;
+
+            tbody.innerHTML = items.map(item => {
+                const revenue = item.total_revenue || 0;
+                const share = item.revenue_share || 0;
+                cumulative += revenue;
+                const cumulativeShare = totalRevenue > 0 ? (cumulative / totalRevenue) * 100 : 0;
+                
+                return `
+                <tr class="border-b border-brand-grey-border hover:bg-brand-blue-light/10 transition-colors">
+                    <td class="py-3 px-4 text-sm font-medium truncate max-w-xs">
+                        ${item.product_name || item.name || `Товар ${item.product_id}`}
+                    </td>
+                    <td class="py-3 px-4 text-sm text-gray-600">${item.product_id || '—'}</td>
+                    <td class="py-3 px-4 text-sm font-bold text-brand-blue">
+                        ${Utils.formatCurrency(revenue)}
+                    </td>
+                    <td class="py-3 px-4 text-sm">${(share * 100).toFixed(1)}%</td>
+                    <td class="py-3 px-4 text-sm">${cumulativeShare.toFixed(1)}%</td>
+                    <td class="py-3 px-4 text-sm">
+                        <span class="px-2 py-1 rounded text-xs font-medium ${getGroupClass(item.abc_class)}">
+                            ${item.abc_class}
+                        </span>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        // Pie chart
+        function renderPieChart(groups) {
+            const ctx = document.getElementById('abcPieChart').getContext('2d');
+
+            if (abcPieChartInstance) {
+                abcPieChartInstance.destroy();
+            }
+
+            abcPieChartInstance = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Группа A', 'Группа B', 'Группа C'],
+                    datasets: [{
+                        data: [groups.A || 0, groups.B || 0, groups.C || 0],
+                        backgroundColor: ['#123273', '#6B9AC4', '#E4E9FC'],
+                        borderWidth: 0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Pareto chart
+        function renderParetoChart(items) {
+            const ctx = document.getElementById('paretoChart').getContext('2d');
+
+            if (paretoChartInstance) {
+                paretoChartInstance.destroy();
+            }
+
+            const topItems = items.slice(0, 10);
+            
+            // Считаем накопленную долю для графика
+            const totalRevenue = items.reduce((sum, item) => sum + (item.total_revenue || 0), 0);
+            let cumulative = 0;
+            const cumulativeShares = [];
+            
+            topItems.forEach(item => {
+                cumulative += (item.total_revenue || 0);
+                const cumulativeShare = totalRevenue > 0 ? (cumulative / totalRevenue) * 100 : 0;
+                cumulativeShares.push(cumulativeShare);
+            });
+
+            paretoChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: topItems.map(item => item.product_name || item.name || item.product_id),
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: 'Выручка',
+                            data: topItems.map(item => item.total_revenue || 0),
+                            backgroundColor: '#123273',
+                            borderRadius: 4,
+                        },
+                        {
+                            type: 'line',
+                            label: 'Накопленная доля %',
+                            data: cumulativeShares,
+                            borderColor: '#E4E9FC',
+                            backgroundColor: 'rgba(228, 233, 252, 0.1)',
+                            tension: 0.4,
+                            yAxisID: 'y1',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#F2F2F2' },
+                            position: 'left',
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { display: false },
+                            position: 'right',
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Утилиты
+        function getGroupClass(group) {
+            const classes = {
+                'A': 'bg-brand-blue text-white',
+                'B': 'bg-blue-200 text-brand-blue',
+                'C': 'bg-brand-blue-light text-brand-blue',
+            };
+            return classes[group] || 'bg-gray-100 text-gray-700';
+        }
+    </script>
+</body>
+</html>

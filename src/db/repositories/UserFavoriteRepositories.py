@@ -1,9 +1,12 @@
-from sqlalchemy import select, delete, exists
+from sqlalchemy import select, delete, exists, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Sequence, List
+from typing import Sequence, List, Optional
+from sqlalchemy.orm import aliased
 
 from src.db.models.UserFavorite import UserFavorite
 from src.db.models.Product import Product
+from src.db.models.PriceTS import PriceTS
+from src.db.models.StockTS import StockTS
 from src.db.schemas.UserFavorite import UserFavoriteCreate
 
 
@@ -50,6 +53,43 @@ async def read_user_favorites(user_id: int, session: AsyncSession) -> Sequence[P
     )
     result = await session.execute(stmt)
     return result.scalars().unique().all()
+
+
+async def read_user_favorites_with_details(
+    user_id: int,
+    session: AsyncSession
+) -> Sequence[tuple]:
+    """
+    Получить избранные товары пользователя с ценой и остатком.
+    Возвращает кортежи: (Product, price, stock)
+    """
+    # Подзапросы для получения последней цены и остатка
+    latest_price = (
+        select(PriceTS.price_sale)
+        .where(PriceTS.product_id == Product.product_id)
+        .order_by(PriceTS.dt.desc())
+        .limit(1)
+        .correlate(Product)
+        .scalar_subquery()
+    )
+    
+    latest_stock = (
+        select(StockTS.quantity)
+        .where(StockTS.product_id == Product.product_id)
+        .order_by(StockTS.dt.desc())
+        .limit(1)
+        .correlate(Product)
+        .scalar_subquery()
+    )
+    
+    stmt = (
+        select(Product, latest_price.label("price"), latest_stock.label("stock"))
+        .join(UserFavorite)
+        .where(UserFavorite.user_id == user_id)
+        .order_by(Product.product_id)
+    )
+    result = await session.execute(stmt)
+    return result.all()
 
 
 async def delete_user_favorites(user_id: int, product_id: int, session: AsyncSession):
