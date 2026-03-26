@@ -55,6 +55,32 @@ async def read_user_favorites(user_id: int, session: AsyncSession) -> Sequence[P
     return result.scalars().unique().all()
 
 
+async def read_user_favorites_filtered(
+    user_id: int, 
+    session: AsyncSession, 
+    brand: str = None, 
+    subject: str = None
+) -> Sequence[Product]:
+    """
+    Получить избранные товары пользователя с фильтрами по brand и subject.
+    """
+    conditions = [UserFavorite.user_id == user_id]
+    
+    if brand:
+        conditions.append(Product.brand == brand)
+    if subject:
+        conditions.append(Product.subject == subject)
+    
+    stmt = (
+        select(Product)
+        .join(UserFavorite)
+        .where(*conditions)
+        .order_by(Product.product_id)
+    )
+    result = await session.execute(stmt)
+    return result.scalars().unique().all()
+
+
 async def read_user_favorites_with_details(
     user_id: int,
     session: AsyncSession

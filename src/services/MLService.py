@@ -15,7 +15,7 @@ from src.db.repositories.ProductFeaturesDailyRepositories import (
     get_all_features_for_train,
     read_features_latest
 )
-from src.db.repositories.UserFavoriteRepositories import read_user_favorites
+from src.db.repositories.UserFavoriteRepositories import read_user_favorites, read_user_favorites_filtered
 from src.db.models.Product import Product
 from src.db.models.PredictedSalesTS import PredictedSalesTS
 from src.db.models.PriceTS import PriceTS
@@ -155,25 +155,27 @@ async def get_forecast_history(session: AsyncSession, product_id: int, limit: in
 async def get_product_forecasts(
     session: AsyncSession,
     user_id: int,
-    days: int = 30
+    days: int = 30,
+    brand: str = None,
+    subject: str = None
 ) -> ProductForecastsResponse:
     """Получить прогнозы по всем избранным товарам пользователя."""
-    # Получаем избранные товары
-    products = await read_user_favorites(user_id, session)
-    
+    # Получаем избранные товары с фильтрами
+    products = await read_user_favorites_filtered(user_id, session, brand=brand, subject=subject)
+
     if not products:
         return ProductForecastsResponse(data=[])
-    
+
     start_date = date.today() - timedelta(days=days)
     data = []
-    
+
     for product in products:
         # Последний прогноз
         latest_pred = await read_latest_prediction(product.product_id, session)
-        
+
         # История прогнозов
         history = await read_predict_sales_history(product.product_id, session, limit=days)
-        
+
         forecast_entry = ProductForecast(
             product_id=product.product_id,
             product_name=product.name,
@@ -194,7 +196,7 @@ async def get_product_forecasts(
             ]
         )
         data.append(forecast_entry)
-    
+
     return ProductForecastsResponse(data=data)
 
 

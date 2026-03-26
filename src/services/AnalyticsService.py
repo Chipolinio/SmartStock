@@ -57,7 +57,9 @@ async def get_sales_dynamics(
         session=session,
         product_id=None,  # Все товары
         days=request.days,
-        user_id=user_id  # Только товары пользователя
+        user_id=user_id,  # Только товары пользователя
+        brand=request.brand,
+        subject=request.subject
     )
 
 
@@ -79,7 +81,9 @@ async def get_stock_dynamics(
         session=session,
         product_id=None,  # Все товары
         days=request.days,
-        user_id=user_id  # Только товары пользователя
+        user_id=user_id,  # Только товары пользователя
+        brand=request.brand,
+        subject=request.subject
     )
 
 
@@ -92,7 +96,9 @@ async def get_abc_analysis(
     return await repo_get_abc_data(
         session=session,
         user_id=user_id,
-        days=request.days
+        days=request.days,
+        brand=request.brand,
+        subject=request.subject
     )
 
 
@@ -105,7 +111,9 @@ async def get_xyz_analysis(
     return await repo_get_xyz_data(
         session=session,
         user_id=user_id,
-        days=request.days
+        days=request.days,
+        brand=request.brand,
+        subject=request.subject
     )
 
 
@@ -120,7 +128,9 @@ async def get_top_products_by_revenue(
         session=session,
         user_id=user_id,
         limit=limit,
-        days=request.days
+        days=request.days,
+        brand=request.brand,
+        subject=request.subject
     )
 
 
@@ -135,7 +145,9 @@ async def get_top_products_by_sales(
         session=session,
         user_id=user_id,
         limit=limit,
-        days=request.days
+        days=request.days,
+        brand=request.brand,
+        subject=request.subject
     )
 
 
@@ -150,7 +162,9 @@ async def get_products_rating(
         session=session,
         user_id=user_id,
         limit=limit,
-        days=request.days
+        days=request.days,
+        brand=request.brand,
+        subject=request.subject
     )
 
 
@@ -193,7 +207,9 @@ async def get_product_forecasts(
     return await MLServiceModule.get_product_forecasts(
         session=session,
         user_id=user_id,
-        days=request.days
+        days=request.days,
+        brand=request.brand,
+        subject=request.subject
     )
 
 

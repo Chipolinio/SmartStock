@@ -27,7 +27,9 @@ async def get_sales_history(
     session: AsyncSession,
     days: int = 30,
     product_id: int = None,
-    user_id: int = None
+    user_id: int = None,
+    brand: str = None,
+    subject: str = None
 ) -> SalesHistoryResponse:
     """
     Временной ряд продаж и выручки по дням.
@@ -72,6 +74,17 @@ async def get_sales_history(
         return SalesHistoryResponse(product_id=product_id, data=data)
 
     # Если product_id не указан — агрегируем по всем товарам пользователя
+    conditions = [
+        UserFavorite.user_id == user_id,
+        SalesProxyTS.dt >= start_date
+    ]
+    
+    # Добавляем фильтры по brand и subject если указаны
+    if brand:
+        conditions.append(Product.brand == brand)
+    if subject:
+        conditions.append(Product.subject == subject)
+
     stmt = (
         select(
             SalesProxyTS.dt,
@@ -89,10 +102,11 @@ async def get_sales_history(
             UserFavorite,
             UserFavorite.product_id == SalesProxyTS.product_id
         )
-        .where(
-            UserFavorite.user_id == user_id,
-            SalesProxyTS.dt >= start_date
+        .join(
+            Product,
+            Product.product_id == SalesProxyTS.product_id
         )
+        .where(*conditions)
         .group_by(SalesProxyTS.dt)
         .order_by(SalesProxyTS.dt.asc())
     )
@@ -116,7 +130,9 @@ async def get_stock_dynamics(
     session: AsyncSession,
     days: int = 30,
     product_id: int = None,
-    user_id: int = None
+    user_id: int = None,
+    brand: str = None,
+    subject: str = None
 ) -> StockDynamicsResponse:
     """
     Временной ряд остатков на складе по дням.
@@ -146,6 +162,17 @@ async def get_stock_dynamics(
         return StockDynamicsResponse(product_id=product_id, data=data)
 
     # Если product_id не указан — агрегируем по всем товарам пользователя
+    conditions = [
+        UserFavorite.user_id == user_id,
+        StockTS.dt >= start_date
+    ]
+    
+    # Добавляем фильтры по brand и subject если указаны
+    if brand:
+        conditions.append(Product.brand == brand)
+    if subject:
+        conditions.append(Product.subject == subject)
+
     stmt = (
         select(
             StockTS.dt,
@@ -155,10 +182,11 @@ async def get_stock_dynamics(
             UserFavorite,
             UserFavorite.product_id == StockTS.product_id
         )
-        .where(
-            UserFavorite.user_id == user_id,
-            StockTS.dt >= start_date
+        .join(
+            Product,
+            Product.product_id == StockTS.product_id
         )
+        .where(*conditions)
         .group_by(StockTS.dt)
         .order_by(StockTS.dt.asc())
     )
@@ -180,14 +208,27 @@ async def get_stock_dynamics(
 async def get_abc_data(
     user_id: int,
     session: AsyncSession,
-    days: int = 30
+    days: int = 30,
+    brand: str = None,
+    subject: str = None
 ) -> ABCAnalysisResponse:
     """
     ABC-анализ: классификация товаров по доле выручки.
     A — 80%, B — 15%, C — 5%
     """
     start_date = date.today() - timedelta(days=days)
+
+    # Условия фильтрации
+    conditions = [
+        UserFavorite.user_id == user_id,
+        SalesProxyTS.dt >= start_date
+    ]
     
+    if brand:
+        conditions.append(Product.brand == brand)
+    if subject:
+        conditions.append(Product.subject == subject)
+
     # Подзапрос: выручка по каждому товару
     revenue_subq = (
         select(
@@ -203,19 +244,16 @@ async def get_abc_data(
             PriceTS.dt == SalesProxyTS.dt
         ))
         .join(UserFavorite, UserFavorite.product_id == Product.product_id)
-        .where(
-            UserFavorite.user_id == user_id,
-            SalesProxyTS.dt >= start_date
-        )
+        .where(*conditions)
         .group_by(Product.product_id, Product.name, Product.brand, Product.subject)
         .subquery("revenue_by_product")
     )
-    
+
     # Общая выручка для расчёта доли
     total_revenue_subq = (
         select(func.sum(revenue_subq.c.total_revenue)).scalar_subquery()
     )
-    
+
     # Расчёт доли и ABC-класса
     stmt = (
         select(
@@ -228,26 +266,26 @@ async def get_abc_data(
         )
         .order_by(revenue_subq.c.total_revenue.desc())
     )
-    
+
     result = await session.execute(stmt)
     rows = result.all()
-    
+
     # Расчёт кумулятивной суммы для ABC
     total_rev = sum(float(row.total_revenue) for row in rows)
     cumulative = 0.0
     data = []
-    
+
     for row in rows:
         cumulative += float(row.total_revenue)
         cumulative_share = cumulative / total_rev if total_rev > 0 else 0
-        
+
         if cumulative_share <= 0.8:
             abc_class = "A"
         elif cumulative_share <= 0.95:
             abc_class = "B"
         else:
             abc_class = "C"
-        
+
         data.append(
             ABCAnalysisEntry(
                 product_id=row.product_id,
@@ -259,21 +297,34 @@ async def get_abc_data(
                 abc_class=abc_class
             )
         )
-    
+
     return ABCAnalysisResponse(data=data)
 
 
 async def get_xyz_data(
     user_id: int,
     session: AsyncSession,
-    days: int = 30
+    days: int = 30,
+    brand: str = None,
+    subject: str = None
 ) -> XYZAnalysisResponse:
     """
     XYZ-анализ: классификация по стабильности спроса.
     X — CV <= 0.1, Y — 0.1 < CV <= 0.25, Z — CV > 0.25
     """
     start_date = date.today() - timedelta(days=days)
+
+    # Условия фильтрации
+    conditions = [
+        UserFavorite.user_id == user_id,
+        SalesProxyTS.dt >= start_date
+    ]
     
+    if brand:
+        conditions.append(Product.brand == brand)
+    if subject:
+        conditions.append(Product.subject == subject)
+
     stmt = (
         select(
             Product.product_id,
@@ -285,29 +336,26 @@ async def get_xyz_data(
         )
         .join(SalesProxyTS, SalesProxyTS.product_id == Product.product_id)
         .join(UserFavorite, UserFavorite.product_id == Product.product_id)
-        .where(
-            UserFavorite.user_id == user_id,
-            SalesProxyTS.dt >= start_date
-        )
+        .where(*conditions)
         .group_by(Product.product_id, Product.name, Product.brand, Product.subject)
     )
-    
+
     result = await session.execute(stmt)
     rows = result.all()
-    
+
     data = []
     for row in rows:
         avg_sales = float(row.avg_sales) if row.avg_sales else 0.0
         sales_std = float(row.sales_std) if row.sales_std else 0.0
         cv = sales_std / avg_sales if avg_sales > 0 else 0.0
-        
+
         if cv <= 0.1:
             xyz_class = "X"
         elif cv <= 0.25:
             xyz_class = "Y"
         else:
             xyz_class = "Z"
-        
+
         data.append(
             XYZAnalysisEntry(
                 product_id=row.product_id,
@@ -320,7 +368,7 @@ async def get_xyz_data(
                 xyz_class=xyz_class
             )
         )
-    
+
     return XYZAnalysisResponse(data=data)
 
 
@@ -328,11 +376,24 @@ async def get_top_products_by_revenue(
     user_id: int,
     session: AsyncSession,
     limit: int = 10,
-    days: int = 30
+    days: int = 30,
+    brand: str = None,
+    subject: str = None
 ) -> TopProductsByRevenueResponse:
     """Топ товаров по выручке."""
     start_date = date.today() - timedelta(days=days)
+
+    # Условия фильтрации
+    conditions = [
+        UserFavorite.user_id == user_id,
+        SalesProxyTS.dt >= start_date
+    ]
     
+    if brand:
+        conditions.append(Product.brand == brand)
+    if subject:
+        conditions.append(Product.subject == subject)
+
     stmt = (
         select(
             Product.product_id,
@@ -348,18 +409,15 @@ async def get_top_products_by_revenue(
             PriceTS.dt == SalesProxyTS.dt
         ))
         .join(UserFavorite, UserFavorite.product_id == Product.product_id)
-        .where(
-            UserFavorite.user_id == user_id,
-            SalesProxyTS.dt >= start_date
-        )
+        .where(*conditions)
         .group_by(Product.product_id, Product.name, Product.brand, Product.subject)
         .order_by(func.sum(SalesProxyTS.sales * PriceTS.price_sale).desc())
         .limit(limit)
     )
-    
+
     result = await session.execute(stmt)
     rows = result.all()
-    
+
     data = [
         TopProductEntry(
             product_id=row.product_id,
@@ -372,7 +430,7 @@ async def get_top_products_by_revenue(
         )
         for idx, row in enumerate(rows)
     ]
-    
+
     return TopProductsByRevenueResponse(data=data)
 
 
@@ -380,11 +438,24 @@ async def get_top_products_by_sales(
     user_id: int,
     session: AsyncSession,
     limit: int = 10,
-    days: int = 30
+    days: int = 30,
+    brand: str = None,
+    subject: str = None
 ) -> TopProductsBySalesResponse:
     """Топ товаров по количеству продаж."""
     start_date = date.today() - timedelta(days=days)
+
+    # Условия фильтрации
+    conditions = [
+        UserFavorite.user_id == user_id,
+        SalesProxyTS.dt >= start_date
+    ]
     
+    if brand:
+        conditions.append(Product.brand == brand)
+    if subject:
+        conditions.append(Product.subject == subject)
+
     stmt = (
         select(
             Product.product_id,
@@ -400,18 +471,15 @@ async def get_top_products_by_sales(
             PriceTS.dt == SalesProxyTS.dt
         ))
         .join(UserFavorite, UserFavorite.product_id == Product.product_id)
-        .where(
-            UserFavorite.user_id == user_id,
-            SalesProxyTS.dt >= start_date
-        )
+        .where(*conditions)
         .group_by(Product.product_id, Product.name, Product.brand, Product.subject)
         .order_by(func.sum(SalesProxyTS.sales).desc())
         .limit(limit)
     )
-    
+
     result = await session.execute(stmt)
     rows = result.all()
-    
+
     data = [
         TopProductEntry(
             product_id=row.product_id,
@@ -424,7 +492,7 @@ async def get_top_products_by_sales(
         )
         for idx, row in enumerate(rows)
     ]
-    
+
     return TopProductsBySalesResponse(data=data)
 
 
@@ -432,11 +500,24 @@ async def get_products_rating(
     user_id: int,
     session: AsyncSession,
     limit: int = 10,
-    days: int = 30
+    days: int = 30,
+    brand: str = None,
+    subject: str = None
 ) -> ProductsRatingResponse:
     """Рейтинг товаров по средней оценке."""
     start_date = date.today() - timedelta(days=days)
+
+    # Условия фильтрации
+    conditions = [
+        UserFavorite.user_id == user_id,
+        SocialTS.dt >= start_date
+    ]
     
+    if brand:
+        conditions.append(Product.brand == brand)
+    if subject:
+        conditions.append(Product.subject == subject)
+
     stmt = (
         select(
             Product.product_id,
@@ -448,18 +529,15 @@ async def get_products_rating(
         )
         .join(SocialTS, SocialTS.product_id == Product.product_id)
         .join(UserFavorite, UserFavorite.product_id == Product.product_id)
-        .where(
-            UserFavorite.user_id == user_id,
-            SocialTS.dt >= start_date
-        )
+        .where(*conditions)
         .group_by(Product.product_id, Product.name, Product.brand, Product.subject)
         .order_by(func.avg(SocialTS.rating).desc())
         .limit(limit)
     )
-    
+
     result = await session.execute(stmt)
     rows = result.all()
-    
+
     data = [
         ProductsRatingEntry(
             product_id=row.product_id,
@@ -472,18 +550,31 @@ async def get_products_rating(
         )
         for idx, row in enumerate(rows)
     ]
-    
+
     return ProductsRatingResponse(data=data)
 
 
 async def get_dashboard_kpi(
     user_id: int,
     session: AsyncSession,
-    days: int = 30
+    days: int = 30,
+    brand: str = None,
+    subject: str = None
 ) -> DashboardKPIResponse:
     """Общие метрики дашборда: выручка, продажи, рейтинг, количество товаров."""
     start_date = date.today() - timedelta(days=days)
+
+    # Условия фильтрации
+    conditions = [
+        UserFavorite.user_id == user_id,
+        SalesProxyTS.dt >= start_date
+    ]
     
+    if brand:
+        conditions.append(Product.brand == brand)
+    if subject:
+        conditions.append(Product.subject == subject)
+
     # Выручка и продажи
     revenue_stmt = (
         select(
@@ -495,36 +586,55 @@ async def get_dashboard_kpi(
             PriceTS.dt == SalesProxyTS.dt
         ))
         .join(UserFavorite, UserFavorite.product_id == SalesProxyTS.product_id)
-        .where(
-            UserFavorite.user_id == user_id,
-            SalesProxyTS.dt >= start_date
-        )
+        .join(Product, Product.product_id == SalesProxyTS.product_id)
+        .where(*conditions)
     )
-    
+
     # Рейтинг
+    rating_conditions = [
+        UserFavorite.user_id == user_id,
+        SocialTS.dt >= start_date
+    ]
+    if brand:
+        rating_conditions.append(Product.brand == brand)
+    if subject:
+        rating_conditions.append(Product.subject == subject)
+    
     rating_stmt = (
         select(func.avg(SocialTS.rating).label("avg_rating"))
         .join(UserFavorite, UserFavorite.product_id == SocialTS.product_id)
-        .where(
-            UserFavorite.user_id == user_id,
-            SocialTS.dt >= start_date
-        )
+        .join(Product, Product.product_id == SocialTS.product_id)
+        .where(*rating_conditions)
     )
-    
+
     # Количество товаров
+    products_conditions = [UserFavorite.user_id == user_id]
+    if brand:
+        products_conditions.append(Product.brand == brand)
+    if subject:
+        products_conditions.append(Product.subject == subject)
+    
     products_stmt = (
         select(func.count(func.distinct(UserFavorite.product_id)))
-        .where(UserFavorite.user_id == user_id)
+        .join(Product, Product.product_id == UserFavorite.product_id)
+        .where(*products_conditions)
     )
-    
+
     # Средняя доставка
+    delivery_conditions = [
+        UserFavorite.user_id == user_id,
+        DeliveryTS.dt >= start_date
+    ]
+    if brand:
+        delivery_conditions.append(Product.brand == brand)
+    if subject:
+        delivery_conditions.append(Product.subject == subject)
+    
     delivery_stmt = (
         select(func.avg(DeliveryTS.delivery_days))
         .join(UserFavorite, UserFavorite.product_id == DeliveryTS.product_id)
-        .where(
-            UserFavorite.user_id == user_id,
-            DeliveryTS.dt >= start_date
-        )
+        .join(Product, Product.product_id == DeliveryTS.product_id)
+        .where(*delivery_conditions)
     )
 
     revenue_result = await session.execute(revenue_stmt)
@@ -560,7 +670,7 @@ async def get_dashboard_kpi(
         oos_count = len(oos_result.all())
     except Exception:
         pass  # Игнорируем ошибки подсчёта OOS
-    
+
     return DashboardKPIResponse(
         total_revenue=float(revenue_row.total_revenue) if revenue_row and revenue_row.total_revenue else 0.0,
         total_sales=int(revenue_row.total_sales) if revenue_row and revenue_row.total_sales else 0,
