@@ -384,6 +384,12 @@
             });
         }
 
+        // Утилита для сокращения названий
+        function truncateText(text, maxLength) {
+            if (!text || text.length <= maxLength) return text;
+            return text.substring(0, maxLength - 3) + '...';
+        }
+
         // Pareto chart
         function renderParetoChart(items) {
             const ctx = document.getElementById('paretoChart').getContext('2d');
@@ -392,28 +398,31 @@
                 paretoChartInstance.destroy();
             }
 
-            const topItems = items.slice(0, 10);
-            
-            // Считаем накопленную долю для графика
+            // Показываем до 10 товаров
+            const displayItems = items.length > 10 ? items.slice(0, 10) : items;
             const totalRevenue = items.reduce((sum, item) => sum + (item.total_revenue || 0), 0);
+
+            // Считаем накопленную долю для отображаемых товаров
             let cumulative = 0;
-            const cumulativeShares = [];
-            
-            topItems.forEach(item => {
+            const cumulativeShares = displayItems.map(item => {
                 cumulative += (item.total_revenue || 0);
-                const cumulativeShare = totalRevenue > 0 ? (cumulative / totalRevenue) * 100 : 0;
-                cumulativeShares.push(cumulativeShare);
+                return totalRevenue > 0 ? (cumulative / totalRevenue) * 100 : 0;
             });
+
+            // Сокращаем названия для оси X (макс 25 символов)
+            const labels = displayItems.map(item => 
+                truncateText(item.product_name || item.name || item.product_id, 25)
+            );
 
             paretoChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: topItems.map(item => item.product_name || item.name || item.product_id),
+                    labels: labels,
                     datasets: [
                         {
                             type: 'bar',
                             label: 'Выручка',
-                            data: topItems.map(item => item.total_revenue || 0),
+                            data: displayItems.map(item => item.total_revenue || 0),
                             backgroundColor: '#123273',
                             borderRadius: 4,
                         },
@@ -425,6 +434,8 @@
                             backgroundColor: 'rgba(228, 233, 252, 0.1)',
                             tension: 0.4,
                             yAxisID: 'y1',
+                            pointRadius: 4,
+                            pointBackgroundColor: '#E4E9FC',
                         }
                     ]
                 },
@@ -432,7 +443,23 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'top' }
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.datasetIndex === 1) {
+                                        return `Накопленная доля: ${context.parsed.y.toFixed(1)}%`;
+                                    }
+                                    return `Выручка: ${Utils.formatCurrency(context.parsed.y)}`;
+                                },
+                                title: function(context) {
+                                    // Показываем полное название в заголовке tooltip
+                                    const index = context[0].dataIndex;
+                                    const fullName = displayItems[index].product_name || displayItems[index].name || displayItems[index].product_id;
+                                    return fullName;
+                                }
+                            }
+                        }
                     },
                     scales: {
                         y: {
@@ -445,9 +472,19 @@
                             max: 100,
                             grid: { display: false },
                             position: 'right',
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
                         },
                         x: {
-                            grid: { display: false }
+                            grid: { display: false },
+                            ticks: {
+                                autoSkip: false,
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
                         }
                     }
                 }
