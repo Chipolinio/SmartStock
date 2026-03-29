@@ -68,13 +68,39 @@ class UserResponse(UserBase):
 
 
 class UserProfileResponse(BaseModel):
-    """Ответ профиля пользователя - только то, что можно изменить."""
+    """Ответ профиля пользователя."""
+    id: Annotated[StrictInt, Field(
+        ...,
+        ge=1,
+        description="Внутренний ID записи в БД"
+    )]
+    user_id: Annotated[Optional[StrictInt], Field(
+        default=None,
+        gt=0,
+        description="Внешний ID (например, Telegram ID)"
+    )] = None
     email: Annotated[EmailStr, Field(
         ...,
         min_length=5,
         max_length=50,
         description="Электронная почта пользователя",
         examples=["user@example.com"]
+    )]
+    role: Annotated[UserRole, Field(
+        UserRole.USER,
+        description="Роль пользователя в системе"
+    )]
+    is_pro: Annotated[bool, Field(
+        False,
+        description="Статус подписки PRO"
+    )]
+    is_active: Annotated[bool, Field(
+        True,
+        description="Статус активности пользователя"
+    )]
+    created_at: Annotated[datetime, Field(
+        ...,
+        description="Дата регистрации"
     )]
 
     model_config = ConfigDict(from_attributes=True)

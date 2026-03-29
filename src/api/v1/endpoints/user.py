@@ -126,7 +126,7 @@ async def get_profile(
 ):
     """Получить профиль текущего пользователя."""
     user = await UserServiceModule._get_db_user_by_internal_id(user_data["user_id"], session)
-    return UserProfileResponse(email=user.email)
+    return user
 
 
 @router.patch("/profile", response_model=UserProfileResponse)
@@ -150,7 +150,7 @@ async def update_profile(
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    return UserProfileResponse(email=user.email)
+    return user
 
 
 @router.get("/telegram/info")

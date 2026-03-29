@@ -195,7 +195,7 @@
             const infoBlock = document.getElementById('user-info-block');
 
             try {
-                const user = await api.getCurrentUser();
+                const user = await api.getProfile();
 
                 infoBlock.innerHTML = `
                     <div class="space-y-3">
@@ -221,8 +221,14 @@
                                 ${user.is_active ? 'Да' : 'Нет'}
                             </span>
                         </div>
+                        ${user.user_id ? `
+                        <div class="flex justify-between items-center py-2 border-b border-brand-grey-border">
+                            <span class="text-gray-500">Telegram ID:</span>
+                            <span class="font-mono text-sm text-brand-blue">${user.user_id}</span>
+                        </div>
+                        ` : ''}
                         <div class="flex justify-between items-center py-2">
-                            <span class="text-gray-500">ID пользователя:</span>
+                            <span class="text-gray-500">Внутренний ID:</span>
                             <span class="font-mono text-sm text-gray-600">#${user.id}</span>
                         </div>
                     </div>
