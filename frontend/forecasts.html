@@ -126,11 +126,6 @@
                 <p class="kpi-value text-red-500" id="forecast-alerts">—</p>
                 <p class="kpi-delta">риск OOS</p>
             </div>
-            <div class="kpi-card">
-                <p class="kpi-label">Точность модели</p>
-                <p class="kpi-value text-green-500" id="forecast-accuracy">—</p>
-                <p class="kpi-delta">MAPE</p>
-            </div>
         </div>
 
         <!-- Таблица прогнозов -->
@@ -231,14 +226,13 @@
             document.getElementById('forecast-products-count').textContent = summary.total_products || 0;
             document.getElementById('forecast-revenue').textContent = Utils.formatCurrency(summary.total_predicted_revenue || 0);
             document.getElementById('forecast-alerts').textContent = summary.oos_risk_count || 0;
-            document.getElementById('forecast-accuracy').textContent = (summary.accuracy || 0) + '%';
         }
 
         // Рендеринг таблицы прогнозов
         function renderForecastsTable(forecasts) {
             const tbody = document.getElementById('forecasts-table-body');
-            
-            // Бэкенд возвращает { data: [{product_id, product_name, latest_prediction, ...}, ...] }
+
+            // Бэкенд возвращает { data: [{product_id, product_name, current_price, latest_prediction, ...}, ...] }
             const forecastsData = forecasts.data || forecasts || [];
 
             if (!forecastsData || forecastsData.length === 0) {
@@ -253,7 +247,8 @@
             tbody.innerHTML = forecastsData.map(item => {
                 const daysToOOS = item.latest_prediction?.days_until_out_of_stock;
                 const predictedSales = item.latest_prediction?.sales_next_day || 0;
-                const predictedRevenue = predictedSales * 1000; // Заглушка, нужна цена
+                const price = item.current_price || 0;
+                const predictedRevenue = predictedSales * price;
                 const status = getForecastStatus(daysToOOS);
                 const displayDaysToOOS = daysToOOS !== undefined ? Math.round(daysToOOS) : '∞';
 
@@ -296,7 +291,7 @@
 
             // Бэкенд возвращает { data: [{product_id, product_name, forecast_history: [{dt, predicted_sales}]}, ...] }
             const forecastsData = forecasts.data || forecasts || [];
-            
+
             if (!forecastsData || forecastsData.length === 0) {
                 return;
             }
@@ -314,20 +309,17 @@
                 });
             });
 
-            // Группировка по датам
+            // Группировка по датам — только продажи
             const grouped = {};
             allHistory.forEach(item => {
                 if (!grouped[item.dt]) {
-                    grouped[item.dt] = { sales: 0, revenue: 0 };
+                    grouped[item.dt] = { sales: 0 };
                 }
                 grouped[item.dt].sales += item.predicted_sales || 0;
-                // Для выручки нужна цена, пока заглушка
-                grouped[item.dt].revenue += (item.predicted_sales || 0) * 1000;
             });
 
             const labels = Object.keys(grouped).sort();
             const salesData = labels.map(dt => grouped[dt].sales);
-            const revenueData = labels.map(dt => grouped[dt].revenue);
 
             forecastChartInstance = new Chart(ctx, {
                 type: 'line',
@@ -344,15 +336,6 @@
                             backgroundColor: 'rgba(18, 50, 115, 0.1)',
                             tension: 0.4,
                             fill: true,
-                        },
-                        {
-                            label: 'Прогноз выручки (₽)',
-                            data: revenueData,
-                            borderColor: '#E4E9FC',
-                            backgroundColor: 'rgba(228, 233, 252, 0.1)',
-                            tension: 0.4,
-                            fill: true,
-                            yAxisID: 'y1',
                         }
                     ]
                 },
@@ -366,12 +349,6 @@
                         y: {
                             beginAtZero: true,
                             grid: { color: '#F2F2F2' },
-                            position: 'left',
-                        },
-                        y1: {
-                            beginAtZero: true,
-                            grid: { display: false },
-                            position: 'right',
                         },
                         x: {
                             grid: { display: false }

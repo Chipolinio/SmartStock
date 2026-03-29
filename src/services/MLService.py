@@ -172,7 +172,25 @@ async def get_product_forecasts(
     for product in products:
         # Последний прогноз
         latest_pred = await read_latest_prediction(product.product_id, session)
-
+        
+        # Текущие остатки для расчёта days_to_oos
+        current_features = await read_features_latest(product.product_id, session)
+        
+        # Получаем текущую цену
+        latest_price = await session.execute(
+            select(PriceTS.price_sale)
+            .where(PriceTS.product_id == product.product_id)
+            .order_by(PriceTS.dt.desc())
+            .limit(1)
+        )
+        price_row = latest_price.scalar_one_or_none()
+        current_price = float(price_row) if price_row else 0.0
+        
+        # Рассчитываем days_to_oos
+        days_to_oos = 999.0
+        if latest_pred and current_features and latest_pred.predicted_sales > 0:
+            days_to_oos = min(current_features.stock_left / float(latest_pred.predicted_sales), 999.0)
+        
         # История прогнозов
         history = await read_predict_sales_history(product.product_id, session, limit=days)
 
@@ -180,9 +198,10 @@ async def get_product_forecasts(
             product_id=product.product_id,
             product_name=product.name,
             brand=product.brand,
+            current_price=current_price,
             latest_prediction=PredictionDetail(
                 sales_next_day=float(latest_pred.predicted_sales),
-                days_until_out_of_stock=999.0,  # Можно рассчитать при необходимости
+                days_until_out_of_stock=round(days_to_oos, 1),
                 model_version=latest_pred.model_version,
                 dt=latest_pred.dt
             ) if latest_pred else None,

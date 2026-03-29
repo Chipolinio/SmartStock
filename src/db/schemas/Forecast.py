@@ -41,6 +41,7 @@ class ProductForecast(BaseModel):
     product_id: int = Field(..., ge=1, description="ID товара")
     product_name: Optional[str] = Field(None, description="Название товара")
     brand: Optional[str] = Field(None, description="Бренд")
+    current_price: Optional[float] = Field(None, description="Текущая цена товара")
     latest_prediction: Optional[PredictionDetail] = Field(None, description="Последний прогноз")
     forecast_history: List[ForecastEntry] = Field(default_factory=list, description="История прогнозов")
 
