@@ -1,131 +1,465 @@
+"""
+Юнит-тесты для AnalyticsService (функциональный подход).
+
+Тестируемые функции:
+- get_sales_dynamics() — динамика продаж
+- get_stock_dynamics() — динамика остатков
+- get_abc_analysis() — ABC-анализ
+- get_xyz_analysis() — XYZ-анализ
+- get_top_products_by_revenue() — топ по выручке
+- get_top_products_by_sales() — топ по продажам
+- get_products_rating() — рейтинг товаров
+- get_dashboard_kpi() — KPI дашборда
+- get_low_stock() — товары с низким остатком
+- get_product_forecasts() — прогнозы товаров
+- get_forecast_history() — история прогнозов
+- get_forecast_summary() — сводка прогнозов
+"""
+
 import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from fastapi import HTTPException
-from src.services.AnalyticsService import run_unified_analytics, get_recommendation_text
-from src.db.schemas.Analytics import AnalyticsRequest
+from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import date, timedelta
 
-
-def test_get_recommendation_text():
-    assert "Хит" in get_recommendation_text("A", "X", 0.9)
-    assert "Неликвид" in get_recommendation_text("C", "Z", 0.5)
-    assert "Срочно" in get_recommendation_text("B", "Y", 0.3)  # Низкий скоринг
+from src.services.AnalyticsService import (
+    get_sales_dynamics,
+    get_stock_dynamics,
+    get_abc_analysis,
+    get_xyz_analysis,
+    get_top_products_by_revenue,
+    get_top_products_by_sales,
+    get_products_rating,
+    get_dashboard_kpi,
+    get_low_stock,
+    get_product_forecasts,
+    get_forecast_history,
+    get_forecast_summary,
+)
+from src.db.schemas.Analytics import DashboardBaseRequest
 
 
 @pytest.mark.asyncio
-async def test_run_unified_analytics_edge_cases(mocker):
-    mock_raw_rows = [
-        {
-            "product_id": 999,
-            "sales_std": 10.0,
-            "sales_avg": 0.0,
-            "avg_rating": 10.0,
-            "max_feedbacks": 1000,
-            "avg_delivery": 1,
-            "abc_sql": "C"
-        }
+async def test_get_sales_dynamics_with_product_id(mocker):
+    """Динамика продаж для конкретного товара."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    request = DashboardBaseRequest(
+        product_id=100,
+        days=30,
+        brand=None,
+        subject=None
+    )
+
+    mock_response = MagicMock()
+    mock_response.product_id = 100
+    mock_response.sales_data = [{"dt": date.today(), "sales": 5}]
+
+    mocker.patch(
+        "src.services.AnalyticsService.repo_get_sales_history",
+        return_value=mock_response
+    )
+
+    # Act
+    result = await get_sales_dynamics(mock_session, user_id=1, request=request)
+
+    # Assert
+    assert result.product_id == 100
+
+
+@pytest.mark.asyncio
+async def test_get_sales_dynamics_aggregated(mocker):
+    """Агрегированная динамика продаж по всем товарам."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    request = DashboardBaseRequest(
+        product_id=None,
+        days=30,
+        brand="Test Brand",
+        subject="Electronics"
+    )
+
+    mock_response = MagicMock()
+    mock_response.sales_data = [{"dt": date.today(), "sales": 10}]
+
+    mocker.patch(
+        "src.services.AnalyticsService.repo_get_sales_history",
+        return_value=mock_response
+    )
+
+    # Act
+    result = await get_sales_dynamics(mock_session, user_id=1, request=request)
+
+    # Assert
+    assert len(result.sales_data) == 1
+    assert result.sales_data[0]["sales"] == 10
+
+
+@pytest.mark.asyncio
+async def test_get_stock_dynamics_with_product_id(mocker):
+    """Динамика остатков для конкретного товара."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    request = DashboardBaseRequest(
+        product_id=100,
+        days=30,
+        brand=None,
+        subject=None
+    )
+
+    mock_response = MagicMock()
+    mock_response.stock_data = [{"dt": date.today(), "stock": 50}]
+
+    mocker.patch(
+        "src.services.AnalyticsService.repo_get_stock_dynamics",
+        return_value=mock_response
+    )
+
+    # Act
+    result = await get_stock_dynamics(mock_session, user_id=1, request=request)
+
+    # Assert
+    assert result.stock_data[0]["stock"] == 50
+
+
+@pytest.mark.asyncio
+async def test_get_stock_dynamics_aggregated(mocker):
+    """Агрегированная динамика остатков."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    request = DashboardBaseRequest(
+        product_id=None,
+        days=30,
+        brand=None,
+        subject=None
+    )
+
+    mock_response = MagicMock()
+    mock_response.stock_data = [{"dt": date.today(), "stock": 100}]
+
+    mocker.patch(
+        "src.services.AnalyticsService.repo_get_stock_dynamics",
+        return_value=mock_response
+    )
+
+    # Act
+    result = await get_stock_dynamics(mock_session, user_id=1, request=request)
+
+    # Assert
+    assert result.stock_data[0]["stock"] == 100
+
+
+@pytest.mark.asyncio
+async def test_get_abc_analysis(mocker):
+    """ABC-анализ товаров."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    request = DashboardBaseRequest(
+        product_id=None,
+        days=30,
+        brand=None,
+        subject=None
+    )
+
+    mock_response = MagicMock()
+    mock_response.items = [
+        {"product_id": 1, "group": "A", "revenue": 1000},
+        {"product_id": 2, "group": "B", "revenue": 500},
+        {"product_id": 3, "group": "C", "revenue": 100},
     ]
 
     mocker.patch(
-        "src.services.AnalyticsService.fetch_universal_data",
-        new_callable=AsyncMock,
-        return_value=mock_raw_rows
+        "src.services.AnalyticsService.repo_get_abc_data",
+        return_value=mock_response
     )
 
-    query = AnalyticsRequest(
-        dimensions=["product_id"],
-        metrics=["xyz", "score"],
-        date_from="2026-01-01",
-        date_to="2026-01-02"
-    )
+    # Act
+    result = await get_abc_analysis(mock_session, user_id=1, request=request)
 
-    results = await run_unified_analytics(AsyncMock(), user_id=1, q=query)
-    res = results[0]
-
-    assert res.metrics.xyz == "X"
-    assert res.metrics.score == 1.0
+    # Assert
+    assert len(result.items) == 3
+    assert result.items[0]["group"] == "A"
 
 
 @pytest.mark.asyncio
-async def test_run_unified_analytics_partial_metrics(mocker):
-    mock_raw_rows = [{"product_id": 1, "total_revenue": 500.0}]
+async def test_get_xyz_analysis(mocker):
+    """XYZ-анализ товаров."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
 
-    mocker.patch(
-        "src.services.AnalyticsService.fetch_universal_data",
-        new_callable=AsyncMock,
-        return_value=mock_raw_rows
+    request = DashboardBaseRequest(
+        product_id=None,
+        days=30,
+        brand=None,
+        subject=None
     )
 
-    # Просим ТОЛЬКО выручку
-    query = AnalyticsRequest(
-        dimensions=["product_id"],
-        metrics=["revenue"],
-        date_from="2026-01-01",
-        date_to="2026-01-02"
-    )
-
-    results = await run_unified_analytics(AsyncMock(), user_id=1, q=query)
-    metrics = results[0].metrics
-
-    assert metrics.revenue == 500.0
-    assert metrics.abc is None
-    assert metrics.xyz is None
-    assert metrics.score is None
-
-
-@pytest.mark.asyncio
-async def test_run_unified_analytics_success(mocker):
-    mock_raw_rows = [
-        {
-            "product_id": 101,
-            "total_revenue": 1000.0,
-            "total_sales": 10,
-            "sales_std": 0.5,
-            "sales_avg": 5.0,
-            "avg_rating": 4.5,
-            "max_feedbacks": 100,
-            "avg_delivery": 2,
-            "abc_sql": "A"
-        }
+    mock_response = MagicMock()
+    mock_response.items = [
+        {"product_id": 1, "group": "X", "cv": 0.1},
+        {"product_id": 2, "group": "Y", "cv": 0.3},
+        {"product_id": 3, "group": "Z", "cv": 0.6},
     ]
 
-    mock_fetch = mocker.patch(
-        "src.services.AnalyticsService.fetch_universal_data",
-        new_callable=AsyncMock,
-        return_value=mock_raw_rows
+    mocker.patch(
+        "src.services.AnalyticsService.repo_get_xyz_data",
+        return_value=mock_response
     )
 
-    query = AnalyticsRequest(
-        dimensions=["product_id"],
-        metrics=["revenue", "abc", "xyz", "score", "recommendation"],
-        date_from="2026-01-01",
-        date_to="2026-01-02"
-    )
+    # Act
+    result = await get_xyz_analysis(mock_session, user_id=1, request=request)
 
-    results = await run_unified_analytics(AsyncMock(), user_id=1, q=query)
-    res = results[0]
-
-    assert res.dimensions["product_id"] == 101
-    assert res.metrics.revenue == 1000.0
-    assert res.metrics.xyz == "X"
-    assert res.metrics.score > 0
-    assert isinstance(res.recommendation, str)
+    # Assert
+    assert len(result.items) == 3
+    assert result.items[0]["group"] == "X"
 
 
 @pytest.mark.asyncio
-async def test_run_unified_analytics_error(mocker):
+async def test_get_top_products_by_revenue(mocker):
+    """Топ товаров по выручке."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    request = DashboardBaseRequest(
+        product_id=None,
+        days=30,
+        brand=None,
+        subject=None
+    )
+
+    mock_response = MagicMock()
+    mock_response.items = [
+        {"product_id": 1, "revenue": 5000},
+        {"product_id": 2, "revenue": 3000},
+    ]
+
     mocker.patch(
-        "src.services.AnalyticsService.fetch_universal_data",
-        side_effect=Exception("DB connection lost")
+        "src.services.AnalyticsService.repo_get_top_products_by_revenue",
+        return_value=mock_response
     )
 
-    query = AnalyticsRequest(
-        dimensions=["dt"],
-        metrics=["revenue"],
-        date_from="2026-01-01",
-        date_to="2026-01-02"
+    # Act
+    result = await get_top_products_by_revenue(mock_session, user_id=1, request=request, limit=2)
+
+    # Assert
+    assert len(result.items) == 2
+    assert result.items[0]["revenue"] == 5000
+
+
+@pytest.mark.asyncio
+async def test_get_top_products_by_sales(mocker):
+    """Топ товаров по продажам."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    request = DashboardBaseRequest(
+        product_id=None,
+        days=30,
+        brand=None,
+        subject=None
     )
 
-    with pytest.raises(HTTPException) as exc:
-        await run_unified_analytics(AsyncMock(), user_id=1, q=query)
+    mock_response = MagicMock()
+    mock_response.items = [
+        {"product_id": 1, "sales": 100},
+        {"product_id": 2, "sales": 50},
+    ]
 
-    assert exc.value.status_code == 500
+    mocker.patch(
+        "src.services.AnalyticsService.repo_get_top_products_by_sales",
+        return_value=mock_response
+    )
+
+    # Act
+    result = await get_top_products_by_sales(mock_session, user_id=1, request=request, limit=2)
+
+    # Assert
+    assert len(result.items) == 2
+    assert result.items[0]["sales"] == 100
+
+
+@pytest.mark.asyncio
+async def test_get_products_rating(mocker):
+    """Рейтинг товаров."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    request = DashboardBaseRequest(
+        product_id=None,
+        days=30,
+        brand=None,
+        subject=None
+    )
+
+    mock_response = MagicMock()
+    mock_response.items = [
+        {"product_id": 1, "rating": 4.9, "reviews": 200},
+        {"product_id": 2, "rating": 4.5, "reviews": 100},
+    ]
+
+    mocker.patch(
+        "src.services.AnalyticsService.repo_get_products_rating",
+        return_value=mock_response
+    )
+
+    # Act
+    result = await get_products_rating(mock_session, user_id=1, request=request, limit=2)
+
+    # Assert
+    assert len(result.items) == 2
+    assert result.items[0]["rating"] == 4.9
+
+
+@pytest.mark.asyncio
+async def test_get_dashboard_kpi(mocker):
+    """KPI дашборда."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    request = DashboardBaseRequest(
+        product_id=None,
+        days=30,
+        brand=None,
+        subject=None
+    )
+
+    mock_response = MagicMock()
+    mock_response.total_revenue = 100000
+    mock_response.total_sales = 500
+    mock_response.avg_rating = 4.5
+
+    mocker.patch(
+        "src.services.AnalyticsService.repo_get_dashboard_kpi",
+        return_value=mock_response
+    )
+
+    # Act
+    result = await get_dashboard_kpi(mock_session, user_id=1, request=request)
+
+    # Assert
+    assert result.total_revenue == 100000
+    assert result.total_sales == 500
+
+
+@pytest.mark.asyncio
+async def test_get_low_stock(mocker):
+    """Товары с низким остатком."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    mock_response = MagicMock()
+    mock_response.items = [
+        {"product_id": 1, "stock": 5, "days_to_oos": 2},
+        {"product_id": 2, "stock": 10, "days_to_oos": 5},
+    ]
+
+    mocker.patch(
+        "src.services.AnalyticsService.repo_get_low_stock",
+        return_value=mock_response
+    )
+
+    # Act
+    result = await get_low_stock(mock_session, user_id=1, limit=10)
+
+    # Assert
+    assert len(result.items) == 2
+    assert result.items[0]["days_to_oos"] == 2
+
+
+@pytest.mark.asyncio
+async def test_get_product_forecasts(mocker):
+    """Прогнозы по избранным товарам."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    request = DashboardBaseRequest(
+        product_id=None,
+        days=30,
+        brand=None,
+        subject=None
+    )
+
+    mock_response = MagicMock()
+    mock_response.data = [
+        {"product_id": 1, "predicted_sales": 10.0},
+        {"product_id": 2, "predicted_sales": 5.0},
+    ]
+
+    mocker.patch(
+        "src.services.AnalyticsService.MLServiceModule.get_product_forecasts",
+        return_value=mock_response
+    )
+
+    # Act
+    result = await get_product_forecasts(mock_session, user_id=1, request=request)
+
+    # Assert
+    assert len(result.data) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_forecast_history_missing_product_id(mocker):
+    """История прогнозов без product_id."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc_info:
+        await get_forecast_history(mock_session, user_id=1, days=30, product_id=None)
+
+    assert exc_info.value.status_code == 400
+    assert "product_id is required" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_get_forecast_history_success(mocker):
+    """История прогнозов успешно."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    mock_response = MagicMock()
+    mock_response.product_id = 100
+    mock_response.data = [
+        {"dt": date.today(), "predicted_sales": 10.0},
+    ]
+
+    mocker.patch(
+        "src.services.AnalyticsService.MLServiceModule.get_forecast_history",
+        return_value=mock_response
+    )
+
+    # Act
+    result = await get_forecast_history(mock_session, user_id=1, days=30, product_id=100)
+
+    # Assert
+    assert result.product_id == 100
+    assert len(result.data) == 1
+
+
+@pytest.mark.asyncio
+async def test_get_forecast_summary(mocker):
+    """Сводка прогнозов."""
+    # Arrange
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    mock_response = MagicMock()
+    mock_response.total_products = 5
+    mock_response.avg_predicted_sales = 8.5
+    mock_response.oos_risk_count = 2
+
+    mocker.patch(
+        "src.services.AnalyticsService.MLServiceModule.get_forecast_summary",
+        return_value=mock_response
+    )
+
+    # Act
+    result = await get_forecast_summary(mock_session, user_id=1)
+
+    # Assert
+    assert result.total_products == 5
+    assert result.oos_risk_count == 2
