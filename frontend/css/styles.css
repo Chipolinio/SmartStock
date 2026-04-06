@@ -287,7 +287,17 @@ body {
     font-size: 1.5rem;
     font-weight: 700;
     color: #123273;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
+}
+
+.sidebar-logo-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.sidebar-logo-link:hover .sidebar-logo {
+    opacity: 0.8;
 }
 
 .sidebar-nav {

@@ -7,7 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.utils.security import get_password_hash, create_token, verify_password
 from src.db.models import User
 from src.db.schemas.User import UserCreate, UserLogin
-from src.db.repositories.UserRepositories import read_user_by_id, read_user_by_email
+from src.db.repositories.UserRepositories import (
+    read_user_by_id,
+    read_user_by_email,
+    read_user_by_internal_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -114,3 +118,14 @@ async def login(
 
     logger.info("Login successful: user_id=%s", user.user_id)
     return token, refresh_token
+
+
+async def get_current_user(
+        user_id: int,
+        session: AsyncSession,
+):
+    """Получить пользователя по внутреннему ID."""
+    user = await read_user_by_internal_id(user_id, session)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
