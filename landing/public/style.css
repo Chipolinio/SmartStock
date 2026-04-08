@@ -705,10 +705,31 @@ button {
 .footer {
   width: 100%;
   background: var(--color-footer-bg);
-  padding: var(--space-3xl) var(--space-lg) var(--space-lg);
+  padding: var(--space-4xl) var(--space-lg) var(--space-lg);
   color: var(--color-white);
   position: relative;
   overflow: hidden;
+}
+
+.footer .footer-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.footer-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-xl);
+  flex-wrap: wrap;
+}
+
+.footer-brand {
+  flex: 1;
+  min-width: 250px;
 }
 
 .footer-logo {
@@ -721,15 +742,69 @@ button {
 .footer-subtitle {
   font-size: 1.125rem;
   font-weight: 700;
-  margin-bottom: var(--space-xl);
   opacity: 0.9;
+}
+
+.footer-contacts {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.footer-phone,
+.footer-email {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--color-white);
+  opacity: 0.9;
+  transition: opacity 0.2s;
+  text-decoration: none;
+}
+
+.footer-phone:hover,
+.footer-email:hover {
+  opacity: 1;
+}
+
+.footer-qr {
+  flex-shrink: 0;
+}
+
+.footer-qr img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
 }
 
 .footer-divider {
   width: 100%;
   height: 1px;
   background: rgba(252, 252, 253, 0.2);
-  margin: var(--space-lg) 0;
+}
+
+.footer-fasie {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.fasie-logo {
+  width: 180px;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.fasie-text {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.5;
+  opacity: 0.5;
+  flex: 1;
+  min-width: 250px;
 }
 
 .footer-bottom {
@@ -801,6 +876,27 @@ button {
 
   .footer-bottom {
     align-items: center;
+  }
+
+  .footer-top {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .footer-contacts {
+    align-items: center;
+  }
+
+  .footer-fasie {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .footer-qr img {
+    width: 100px;
+    height: 100px;
   }
 }
 

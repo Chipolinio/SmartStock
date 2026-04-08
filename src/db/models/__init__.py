@@ -13,6 +13,7 @@ from src.db.models.SocialTS import SocialTS
 from src.db.models.PredictedSalesTS import PredictedSalesTS
 from src.db.models.ProductFeaturesDaily import ProductFeaturesDaily
 from src.db.models.SystemLog import SystemLog
+from src.db.models.AdRecommendation import AdRecommendation
 
 __all__ = [
     "Base",
@@ -27,4 +28,5 @@ __all__ = [
     "PredictedSalesTS",
     "ProductFeaturesDaily",
     "SystemLog",
+    "AdRecommendation",
 ]

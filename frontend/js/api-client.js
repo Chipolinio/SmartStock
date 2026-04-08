@@ -358,6 +358,18 @@ class SmartStockAPI {
     async getSystemLogs(params = {}) {
         return this.get('/admin/logs', params);
     }
+
+    // ========================================================================
+    // AD CAMPAIGNS (Рекомендации по рекламе)
+    // ========================================================================
+
+    async getAdRecommendations(params = {}) {
+        return this.get('/ad-campaigns/', params);
+    }
+
+    async generateAdRecommendations(data = {}) {
+        return this.post('/ad-campaigns/generate', data);
+    }
 }
 
 // Экспорт экземпляра API

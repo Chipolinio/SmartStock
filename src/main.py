@@ -119,5 +119,9 @@ async def analytics_tops_page():
 async def reports_builder_page():
     return FileResponse(os.path.join(frontend_dir, "reports-builder.html"))
 
+@app.get("/ad-campaigns")
+async def ad_campaigns_page():
+    return FileResponse(os.path.join(frontend_dir, "ad_campaigns.html"))
+
 # API роуты (ПОСЛЕ страниц!)
 app.include_router(router)

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock — Рекламные кампании</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-dark': '#070F26',
+                        'brand-blue': '#123273',
+                        'brand-light-bg': '#F3F6FD',
+                        'brand-blue-light': '#E4E9FC',
+                        'brand-grey-border': '#F2F2F2',
+                        'brand-white': '#FFFFFF',
+                    }
+                }
+            }
+        }
+        marked.setOptions({ breaks: true, gfm: true });
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        .markdown-body h1 { font-size: 1.5rem; font-weight: 700; margin: 1rem 0 0.5rem; }
+        .markdown-body h2 { font-size: 1.25rem; font-weight: 700; margin: 0.75rem 0 0.5rem; }
+        .markdown-body h3 { font-size: 1.125rem; font-weight: 600; margin: 0.75rem 0 0.25rem; }
+        .markdown-body p { margin: 0.5rem 0; line-height: 1.6; }
+        .markdown-body ul, .markdown-body ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        .markdown-body li { margin: 0.25rem 0; line-height: 1.5; }
+        .markdown-body code { background: #E4E9FC; padding: 2px 6px; border-radius: 4px; font-size: 0.875em; }
+        .markdown-body pre { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 0.75rem 0; }
+        .markdown-body pre code { background: none; color: inherit; padding: 0; }
+        .markdown-body strong { color: #070F26; }
+        .markdown-body blockquote { border-left: 3px solid #123273; padding-left: 1rem; color: #6b7280; margin: 0.5rem 0; }
+        .markdown-body hr { border: none; border-top: 1px solid #e5e7eb; margin: 1rem 0; }
+        .markdown-body table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+        .markdown-body th, .markdown-body td { border: 1px solid #e5e7eb; padding: 0.5rem 0.75rem; text-align: left; font-size: 0.875rem; }
+        .markdown-body th { background: #E4E9FC; font-weight: 600; }
+
+        /* Spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .pulse-dot {
+            width: 8px; height: 8px;
+            background: #123273;
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.5); }
+        }
+    </style>
+</head>
+<body class="bg-brand-light-bg min-h-screen text-brand-dark">
+    <!-- Боковая панель -->
+    <nav class="sidebar">
+        <h1 class="sidebar-logo">SmartStock</h1>
+        <ul class="space-y-2">
+            <li><a href="/dashboard" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>📊 Дашборд</a></li>
+            <li><a href="/favorites" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>❤️ Избранное</a></li>
+            <li><a href="/products" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>🏷️ Товары</a></li>
+            <li><a href="/analytics-sales" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>📈 Аналитика</a></li>
+            <li><a href="/analytics-stock" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>📦 Остатки</a></li>
+            <li><a href="/analytics-abc" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>🔤 ABC</a></li>
+            <li><a href="/analytics-xyz" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>📊 XYZ</a></li>
+            <li><a href="/analytics-tops" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>🏆 Топы</a></li>
+            <li><a href="/forecasts" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>🔮 Прогнозы</a></li>
+            <li><a href="/ad-campaigns" class="block p-3 bg-brand-blue rounded-lg text-white font-medium" data-requires-user>📢 Рекламные кампании</a></li>
+            <li><a href="/telegram" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>📱 Telegram</a></li>
+            <li><a href="/profile" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors" data-requires-user>👤 Профиль</a></li>
+            <li><a href="/admin" class="block p-3 hover:bg-brand-blue-light rounded-lg text-brand-blue font-medium transition-colors hidden" data-requires-admin>⚙️ Админка</a></li>
+        </ul>
+        <div class="absolute bottom-4 left-4 right-4">
+            <div class="mb-2 text-sm text-gray-500 truncate" data-user-info></div>
+            <button onclick="AuthHelper.logout()" class="w-full p-3 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors">Выйти</button>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <main class="ml-64 p-8">
+        <!-- Заголовок -->
+        <header class="mb-8">
+            <h2 class="text-3xl font-bold text-brand-dark">📢 Рекламные кампании</h2>
+            <p class="text-gray-600 mt-1">AI-рекомендации по продвижению на основе ваших продаж</p>
+        </header>
+
+        <!-- Панель управления -->
+        <div class="card fade-in mb-8">
+            <div class="flex flex-wrap gap-4 items-end">
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Тип анализа</label>
+                    <select id="promptType" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-blue focus:border-brand-blue">
+                        <option value="full">Полный анализ</option>
+                        <option value="campaign">Рекламные кампании</option>
+                        <option value="keywords">Ключевые фразы</option>
+                        <option value="budget">Бюджет</option>
+                    </select>
+                </div>
+                <button onclick="generateRecommendations()" id="generateBtn" class="px-6 py-2 bg-brand-blue text-white rounded-lg hover:bg-brand-blue/90 transition-colors font-medium text-sm">
+                    ✨ Сгенерировать рекомендации
+                </button>
+            </div>
+        </div>
+
+        <!-- Фильтр по категориям -->
+        <div class="card fade-in mb-8">
+            <div class="flex flex-wrap gap-4 items-center">
+                <span class="text-sm font-medium text-gray-600">Показать:</span>
+                <button onclick="filterCategory(null)" class="filter-btn px-3 py-1 rounded-full text-sm font-medium bg-brand-blue text-white" data-cat="">Все</button>
+                <button onclick="filterCategory('full')" class="filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600" data-cat="full">Полный анализ</button>
+                <button onclick="filterCategory('campaign')" class="filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600" data-cat="campaign">Кампании</button>
+                <button onclick="filterCategory('keywords')" class="filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600" data-cat="keywords">Ключевые фразы</button>
+                <button onclick="filterCategory('budget')" class="filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600" data-cat="budget">Бюджет</button>
+            </div>
+        </div>
+
+        <!-- Прогресс генерации -->
+        <div id="progressMessage" class="hidden mb-6 card p-6">
+            <div class="flex items-center gap-4">
+                <div class="pulse-dot"></div>
+                <div>
+                    <p class="font-medium text-brand-dark">Генерация рекомендаций…</p>
+                    <p class="text-sm text-gray-500">AI анализирует данные по вашим товарам, это может занять 10–30 секунд</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Статус -->
+        <div id="statusMessage" class="hidden mb-6 p-4 rounded-lg text-sm"></div>
+
+        <!-- Рекомендации -->
+        <div id="recommendationsContainer" class="space-y-6">
+            <div class="card fade-in p-8 text-center text-gray-400">
+                Нажмите «Сгенерировать рекомендации» чтобы получить советы от AI
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/api-client.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            AuthHelper.updateNavigation();
+            setActiveNavItem();
+            loadRecommendations();
+        });
+
+        function setActiveNavItem() {
+            const currentPath = window.location.pathname.replace(/\/$/, '');
+            document.querySelectorAll('.sidebar a').forEach(link => {
+                link.classList.remove('bg-brand-blue', 'text-white');
+                link.classList.add('hover:bg-brand-blue-light', 'text-brand-blue');
+                const linkPath = link.getAttribute('href').replace(/\/$/, '');
+                if (linkPath === currentPath) {
+                    link.classList.remove('hover:bg-brand-blue-light', 'text-brand-blue');
+                    link.classList.add('bg-brand-blue', 'text-white');
+                }
+            });
+        }
+
+        async function generateRecommendations() {
+            const btn = document.getElementById('generateBtn');
+            const promptType = document.getElementById('promptType').value;
+            const progress = document.getElementById('progressMessage');
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Генерация…';
+            progress.classList.remove('hidden');
+
+            try {
+                await api.generateAdRecommendations({ prompt_type: promptType });
+                progress.classList.add('hidden');
+                showStatus('Рекомендации успешно сгенерированы!', 'success');
+                loadRecommendations();
+            } catch (error) {
+                progress.classList.add('hidden');
+                showStatus('Ошибка: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '✨ Сгенерировать рекомендации';
+            }
+        }
+
+        async function loadRecommendations() {
+            const container = document.getElementById('recommendationsContainer');
+            try {
+                const params = {};
+                if (activeCategory) params.category = activeCategory;
+                const data = await api.getAdRecommendations(params);
+                renderRecommendations(data.items || []);
+            } catch (error) {
+                container.innerHTML = `<div class="card fade-in p-8 text-center text-red-400">Ошибка загрузки: ${error.message}</div>`;
+            }
+        }
+
+        function renderRecommendations(items) {
+            const container = document.getElementById('recommendationsContainer');
+            if (!items || items.length === 0) {
+                container.innerHTML = `<div class="card fade-in p-8 text-center text-gray-400">Нет рекомендаций. Нажмите «Сгенерировать рекомендации» чтобы начать.</div>`;
+                return;
+            }
+            container.innerHTML = items.map(item => `
+                <div class="card fade-in p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <span class="px-2 py-1 rounded text-xs font-medium ${getCategoryBadgeClass(item.category)}">${getCategoryLabel(item.category)}</span>
+                            <span class="text-xs text-gray-400">${formatDate(item.created_at)}</span>
+                        </div>
+                        <span class="px-2 py-1 rounded text-xs font-medium ${getPriorityBadge(item.priority)}">${getPriorityLabel(item.priority)}</span>
+                    </div>
+                    <div class="markdown-body text-sm text-gray-700">${marked.parse(item.recommendation_text)}</div>
+                </div>
+            `).join('');
+        }
+
+        function getCategoryBadgeClass(category) {
+            const map = { 'full': 'bg-brand-blue text-white', 'campaign': 'bg-purple-100 text-purple-700', 'keywords': 'bg-green-100 text-green-700', 'budget': 'bg-yellow-100 text-yellow-700', 'strategy': 'bg-blue-100 text-blue-700' };
+            return map[category] || 'bg-gray-100 text-gray-700';
+        }
+        function getCategoryLabel(category) {
+            const map = { 'full': 'Полный анализ', 'campaign': 'Кампании', 'keywords': 'Ключевые фразы', 'budget': 'Бюджет', 'strategy': 'Стратегия' };
+            return map[category] || category || 'Общее';
+        }
+        function getPriorityBadge(priority) {
+            const map = { 1: 'bg-red-100 text-red-700', 2: 'bg-yellow-100 text-yellow-700', 3: 'bg-green-100 text-green-700' };
+            return map[priority] || 'bg-gray-100 text-gray-700';
+        }
+        function getPriorityLabel(priority) {
+            const map = { 1: 'Высокий', 2: 'Средний', 3: 'Низкий' };
+            return map[priority] || '';
+        }
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+        function showStatus(message, type) {
+            const el = document.getElementById('statusMessage');
+            el.classList.remove('hidden');
+            el.className = type === 'success'
+                ? 'mb-6 p-4 rounded-lg text-sm bg-green-50 text-green-700 border border-green-200'
+                : 'mb-6 p-4 rounded-lg text-sm bg-red-50 text-red-700 border border-red-200';
+            el.textContent = message;
+            setTimeout(() => el.classList.add('hidden'), 5000);
+        }
+
+        let activeCategory = null;
+
+        function filterCategory(category) {
+            activeCategory = category;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                const cat = btn.dataset.cat;
+                const isActive = (category === null && cat === '') || cat === category;
+                btn.className = isActive
+                    ? 'filter-btn px-3 py-1 rounded-full text-sm font-medium bg-brand-blue text-white'
+                    : 'filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600';
+            });
+            loadRecommendations();
+        }
+    </script>
+</body>
+</html>

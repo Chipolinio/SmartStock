@@ -28,6 +28,8 @@ class Settings(BaseSettings):
 
     BOT_TOKEN: str
 
+    LLM_API_KEY: str = ""
+
     @property
     def DATABASE_URL(self) -> str:
         return (f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
