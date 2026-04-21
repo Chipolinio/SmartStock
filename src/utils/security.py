@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import bcrypt
 import jwt
@@ -6,8 +7,34 @@ import jwt
 from settings import settings
 from starlette.responses import Response
 
-JWT_PRIVATE_KEY = settings.JWT_PRIVATE_KEY.read_text()
-JWT_PUBLIC_KEY = settings.JWT_PUBLIC_KEY.read_text()
+def _normalize_pem_from_env(value: str) -> str:
+    return value.replace("\\n", "\n").strip()
+
+
+def _read_key_file(path: Path) -> str:
+    if path.exists():
+        return path.read_text().strip()
+    return ""
+
+
+def _load_jwt_keys() -> tuple[str, str]:
+    private_key_env = _normalize_pem_from_env(settings.JWT_PRIVATE_KEY_PEM)
+    public_key_env = _normalize_pem_from_env(settings.JWT_PUBLIC_KEY_PEM)
+    if private_key_env and public_key_env:
+        return private_key_env, public_key_env
+
+    private_key_file = _read_key_file(settings.JWT_PRIVATE_KEY)
+    public_key_file = _read_key_file(settings.JWT_PUBLIC_KEY)
+    if private_key_file and public_key_file:
+        return private_key_file, public_key_file
+
+    raise RuntimeError(
+        "JWT keys are missing. Set JWT_PRIVATE_KEY_PEM/JWT_PUBLIC_KEY_PEM env vars "
+        "or provide cert files at settings.JWT_PRIVATE_KEY/settings.JWT_PUBLIC_KEY."
+    )
+
+
+JWT_PRIVATE_KEY, JWT_PUBLIC_KEY = _load_jwt_keys()
 
 
 def get_password_hash(password: str) -> str:

@@ -26,6 +26,8 @@ class Settings(BaseSettings):
 
     JWT_PRIVATE_KEY: Path = PROJECT_ROOT / "certs" / "private.pem"
     JWT_PUBLIC_KEY: Path = PROJECT_ROOT / "certs" / "public.pem"
+    JWT_PRIVATE_KEY_PEM: str = ""
+    JWT_PUBLIC_KEY_PEM: str = ""
     ALGORITHM: str = "RS256"
 
     BOT_TOKEN: str

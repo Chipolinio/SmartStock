@@ -18,7 +18,6 @@ COPY bot /app/bot
 COPY migrations /app/migrations
 COPY frontend /app/frontend
 COPY landing /app/landing
-COPY certs /app/certs
 COPY settings.py /app/settings.py
 COPY alembic.ini /app/alembic.ini
 COPY docker/entrypoint.sh /app/docker/entrypoint.sh
