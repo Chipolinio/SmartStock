@@ -7,6 +7,7 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    openssl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
@@ -20,6 +21,11 @@ COPY landing /app/landing
 COPY certs /app/certs
 COPY settings.py /app/settings.py
 COPY alembic.ini /app/alembic.ini
+COPY docker/entrypoint.sh /app/docker/entrypoint.sh
+
+RUN chmod +x /app/docker/entrypoint.sh
 
 EXPOSE 8000
+
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
 
