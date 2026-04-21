@@ -59,6 +59,10 @@ def html_no_cache(path: str) -> FileResponse:
 async def root():
     return html_no_cache(os.path.join(landing_dir, "index.html"))
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
 @app.get("/login")
 async def login_page():
     return html_no_cache(os.path.join(frontend_dir, "login.html"))

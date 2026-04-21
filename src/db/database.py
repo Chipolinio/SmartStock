@@ -9,8 +9,9 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 if not DATABASE_URL or not DATABASE_URL.startswith("postgresql+asyncpg"):
-    print("DEBUG: URL is wrong or not found, fixing it manually...")
-    DATABASE_URL = "postgresql+asyncpg://admin:password@127.0.0.1:5434/smartstock"
+    raise RuntimeError(
+        "DATABASE_URL must be set and start with 'postgresql+asyncpg://'"
+    )
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
