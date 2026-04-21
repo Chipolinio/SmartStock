@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     POSTGRES_PORT_TEST: int
 
     LOG_LEVEL: str = "INFO"
+    COOKIE_SECURE: bool = True
+    COOKIE_SAMESITE: str = "lax"
 
     JWT_PRIVATE_KEY: Path = PROJECT_ROOT / "certs" / "private.pem"
     JWT_PUBLIC_KEY: Path = PROJECT_ROOT / "certs" / "public.pem"
