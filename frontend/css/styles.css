@@ -515,14 +515,45 @@ body {
         margin-left: 0;
     }
 
+    /* Страницы используют Tailwind-класс ml-64 для основного контента */
+    main.ml-64 {
+        margin-left: 0 !important;
+        padding: 1.25rem !important;
+    }
+
+    /* Блок пользователя/выхода в сайдбаре должен идти в потоке на мобильных */
+    .sidebar .absolute.bottom-4.left-4.right-4 {
+        position: static;
+        margin-top: 1rem;
+    }
+
     .kpi-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 }
 
 @media (max-width: 640px) {
+    .sidebar {
+        padding: 0.75rem;
+    }
+
+    .sidebar-logo {
+        font-size: 1.25rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .sidebar-nav a,
+    .sidebar a {
+        padding: 0.625rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
     .main-content {
         padding: 1rem;
+    }
+
+    main.ml-64 {
+        padding: 1rem !important;
     }
 
     .kpi-grid {
@@ -533,5 +564,23 @@ body {
     .grid-cols-3,
     .grid-cols-4 {
         grid-template-columns: 1fr;
+    }
+
+    .tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tab {
+        white-space: nowrap;
+        padding: 0.625rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .toast {
+        left: 1rem;
+        right: 1rem;
+        width: auto;
+        top: 0.75rem;
     }
 }
