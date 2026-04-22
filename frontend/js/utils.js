@@ -275,4 +275,71 @@ const Utils = {
             return this.retry(fn, retries - 1, delay * 2);
         }
     },
+
+    /**
+     * Инициализация мобильного меню (бургер + оверлей)
+     */
+    initMobileNavigation() {
+        const sidebar = document.querySelector('.sidebar');
+        if (!sidebar || document.querySelector('.mobile-nav-toggle')) return;
+
+        const toggleButton = document.createElement('button');
+        toggleButton.type = 'button';
+        toggleButton.className = 'mobile-nav-toggle';
+        toggleButton.setAttribute('aria-label', 'Открыть меню');
+        toggleButton.setAttribute('aria-expanded', 'false');
+        toggleButton.innerHTML = '&#9776;';
+
+        const overlay = document.createElement('div');
+        overlay.className = 'mobile-nav-overlay';
+
+        const closeMenu = () => {
+            document.body.classList.remove('mobile-nav-open');
+            toggleButton.setAttribute('aria-expanded', 'false');
+            toggleButton.innerHTML = '&#9776;';
+        };
+
+        const openMenu = () => {
+            document.body.classList.add('mobile-nav-open');
+            toggleButton.setAttribute('aria-expanded', 'true');
+            toggleButton.innerHTML = '&times;';
+        };
+
+        toggleButton.addEventListener('click', () => {
+            if (document.body.classList.contains('mobile-nav-open')) {
+                closeMenu();
+            } else {
+                openMenu();
+            }
+        });
+
+        overlay.addEventListener('click', closeMenu);
+
+        // Закрываем меню после перехода по пункту
+        sidebar.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', closeMenu);
+        });
+
+        // На desktop всегда закрываем состояние мобильного меню
+        const mediaQuery = window.matchMedia('(min-width: 1025px)');
+        const handleViewportChange = () => {
+            if (mediaQuery.matches) {
+                closeMenu();
+            }
+        };
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', handleViewportChange);
+        } else if (typeof mediaQuery.addListener === 'function') {
+            mediaQuery.addListener(handleViewportChange);
+        }
+
+        document.body.appendChild(toggleButton);
+        document.body.appendChild(overlay);
+    },
 };
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => Utils.initMobileNavigation());
+} else {
+    Utils.initMobileNavigation();
+}
