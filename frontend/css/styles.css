@@ -283,7 +283,7 @@ body.mobile-nav-open {
     background-color: #FFFFFF;
     border-right: 1px solid #F2F2F2;
     padding: 1rem;
-    z-index: 40;
+    z-index: 50;
     overflow-y: auto;
 }
 
