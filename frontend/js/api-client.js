@@ -136,7 +136,14 @@ class SmartStockAPI {
     }
 
     async addToFavorites(wbArticle) {
-        return this.post(`/user/favorites`, { wb_article: wbArticle });
+        // Backend ожидает wb_article в query, а не в JSON body
+        const article = Number(wbArticle);
+        if (!Number.isFinite(article) || article <= 0) {
+            throw new Error('Invalid wbArticle');
+        }
+        return this.request(`/user/favorites?wb_article=${encodeURIComponent(String(article))}`, {
+            method: 'POST',
+        });
     }
 
     async deleteFromFavorites(wbArticle) {
