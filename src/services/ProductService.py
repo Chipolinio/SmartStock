@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.schemas.Product import ProductCreate, ProductUpdate, ProductResponse, ProductDetailedResponse
 from src.db.repositories import ProductRepositories as ProductRepo
 from src.db.repositories import UserFavoriteRepositories as UserFavoriteRepo
-from src.db.schemas.UserFavorite import UserFavoriteCreate
+from src.db.schemas.UserFavorite import UserFavoriteCreate, UserFavoriteResponse
 from src.services.IntegrationService import WBScraper
 from src.services import SalesService as SalesServiceModule
 
@@ -161,7 +161,7 @@ async def add_to_favorites(
     user_id: int,
     wb_article: int,
     session: AsyncSession
-) -> Tuple[Optional[ProductResponse], bool]:
+) -> Tuple[Optional[UserFavoriteResponse], bool]:
     """
     Добавить товар в избранное.
     
@@ -186,7 +186,7 @@ async def add_to_favorites(
             )
         
         await session.commit()
-        return ProductResponse.model_validate(product), False
+        return UserFavoriteResponse.model_validate(result), False
     
     # 2. Товара нет в БД — запускаем скрапер (возвращаем Pending статус)
     logger.info(f"Product {wb_article} not found, initiating scraper for user {user_id}")

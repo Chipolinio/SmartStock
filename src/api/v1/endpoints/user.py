@@ -48,7 +48,7 @@ async def add_to_favorites(
     """
     # Если указан wb_article — используем логику со скрапером
     if wb_article:
-        product, is_pending = await ProductServiceModule.add_to_favorites(
+        fav, is_pending = await ProductServiceModule.add_to_favorites(
             user_id=user_data["user_id"],
             wb_article=wb_article,
             session=session
@@ -70,7 +70,7 @@ async def add_to_favorites(
                 }
             )
 
-        return product
+        return fav
     
     # Если указан product_id — простая логика
     if fav_req and fav_req.product_id:
