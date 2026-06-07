@@ -745,40 +745,6 @@ button {
   opacity: 0.9;
 }
 
-.footer-contacts {
-  flex: 1;
-  min-width: 200px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.footer-phone,
-.footer-email {
-  font-size: 1.25rem;
-  font-weight: 500;
-  color: var(--color-white);
-  opacity: 0.9;
-  transition: opacity 0.2s;
-  text-decoration: none;
-}
-
-.footer-phone:hover,
-.footer-email:hover {
-  opacity: 1;
-}
-
-.footer-qr {
-  flex-shrink: 0;
-}
-
-.footer-qr img {
-  width: 120px;
-  height: 120px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-}
-
 .footer-divider {
   width: 100%;
   height: 1px;
@@ -901,10 +867,6 @@ button {
     text-align: center;
   }
 
-  .footer-contacts {
-    align-items: center;
-  }
-
   .footer-fasie {
     flex-direction: column;
     align-items: center;
@@ -914,11 +876,6 @@ button {
   .footer-support-logos {
     flex-direction: column;
     align-items: center;
-  }
-
-  .footer-qr img {
-    width: 100px;
-    height: 100px;
   }
 }
 
