@@ -50,11 +50,22 @@ def _build_prompt(products_data: list[dict[str, Any]], prompt_type: str) -> str:
     )
 
 
+def _extract_llm_text(data: dict[str, Any]) -> str:
+    """Извлечь текст из ответа xAI Responses API."""
+    for item in data.get("output") or []:
+        if item.get("type") != "message":
+            continue
+        for part in item.get("content") or []:
+            if part.get("type") == "output_text" and part.get("text"):
+                return part["text"]
+    raise KeyError("no output_text in LLM response")
+
+
 async def _call_llm(prompt: str, api_key: str) -> str:
     payload = {
         "model": LLM_MODEL,
-        "input": prompt,
-        "max_tokens": 1000,
+        "input": [{"role": "user", "content": prompt}],
+        "max_output_tokens": 1000,
     }
 
     async with httpx.AsyncClient(timeout=120) as client:
@@ -73,9 +84,9 @@ async def _call_llm(prompt: str, api_key: str) -> str:
 
     data = resp.json()
     try:
-        return data["output"][0]["content"][0]["text"]
-    except (KeyError, IndexError) as e:
-        logger.error("Unexpected LLM response: %s", e)
+        return _extract_llm_text(data)
+    except KeyError as e:
+        logger.error("Unexpected LLM response structure: %s; body=%s", e, data)
         raise HTTPException(status_code=502, detail="Неверный формат ответа LLM")
 
 
