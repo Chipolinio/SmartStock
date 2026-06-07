@@ -792,10 +792,22 @@ button {
   flex-wrap: wrap;
 }
 
+.footer-support-logos {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  flex-shrink: 0;
+}
+
 .fasie-logo {
   width: 180px;
   height: auto;
-  flex-shrink: 0;
+}
+
+.platform-tech-logo {
+  width: 160px;
+  height: auto;
+  mix-blend-mode: screen;
 }
 
 .fasie-text {
@@ -897,6 +909,11 @@ button {
     flex-direction: column;
     align-items: center;
     text-align: center;
+  }
+
+  .footer-support-logos {
+    flex-direction: column;
+    align-items: center;
   }
 
   .footer-qr img {

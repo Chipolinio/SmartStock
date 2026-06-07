@@ -1,4 +1,3 @@
-.idea/
 *.iml
 *.xml
 .venv/
@@ -13,3 +12,35 @@ venv/
 .qwen/
 .instructions/
 .output_md/
+coverage.json
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Logs
+logs/
+*.log
+
+# Keys & certificates
+certs/
+*.pem
+*.pem.pub
+*.key
+sweb_ed25519
+sweb_ed25519.pub
+
+# CatBoost / ML artifacts
+catboost_info/
+catboost_sales_model.bin
+*.cbm
+
+# Database backups
+backups/
+*.sql
+
+# OS
+.DS_Store
+
+.cursor/
+.vscode/
+.idea/
